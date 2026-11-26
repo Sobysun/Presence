@@ -111,9 +111,10 @@
   <button class="btn vert" id="demarrer">▶ Commencer l'appel</button>
   <div class="compteur" id="compteurAccueil"></div>
 
-  <div class="etape">③ TERMINER</div>
-  <button class="btn" id="terminer">💾 Terminer l'appel et mettre à jour l'Excel</button>
-  <p class="petit">Arrête le scan, recalcule le fichier Presences.xlsx avec toutes les séances et ouvre le menu d'envoi vers votre drive.</p>
+  <div class="etape">③ VALIDER</div>
+  <div id="etatValidation"></div>
+  <button class="btn" id="terminer">✅ Valider l'appel et mettre à jour l'Excel</button>
+  <p class="petit">Tant que l'appel n'est pas validé, la séance reste un brouillon : elle n'apparaît ni dans l'Historique, ni dans l'Excel, ni dans ADE.</p>
 
   <div class="etape">④ REPORTER DANS ADE (UPplanning)</div>
   <div class="info" id="etatSync">Synchronisation avec le PC non configurée (onglet Réglages).</div>
@@ -199,6 +200,7 @@
     <button class="btn rouge" id="arreter">⏹ Arrêter le scan</button>
     <button class="btn vert" id="reprendre" style="display:none">▶ Reprendre le scan</button>
     <button class="btn secondaire" id="accueil">🏠 Accueil</button>
+    <button class="btn" id="validerAppel">✅ Valider</button>
   </div>
 </div>
 
@@ -256,6 +258,7 @@ function charger() {
 }
 function migrer() {
   D.memo = D.memo || {};
+  D.seances.forEach(s => { if (s.validee === undefined) s.validee = !!(s.saisiAde || Object.keys(s.presents || {}).length); });
   if (typeof D.seuilRetard !== 'number') D.seuilRetard = 10;
   D.etudiants.forEach(e => {
     if (!e.groupes) e.groupes = e.groupeId ? [e.groupeId] : [];
@@ -489,6 +492,10 @@ $('#filtreAbsents').onchange = afficherListeAppel;
 
 // Récapitulatif à reporter dans la fenêtre « Saisie des présences » d'ADE
 function afficherRecapAde(s) {
+  $('#etatValidation').innerHTML = s.validee ? '<div class="info">✅ Appel validé : la séance est dans l\'Historique, l\'Excel et la synchro ADE.</div>'
+    : '<div class="alerte">📝 Brouillon : appel pas encore validé.</div>';
+  $('#terminer').textContent = s.validee ? "💾 Mettre à jour l'Excel" : "✅ Valider l'appel et mettre à jour l'Excel";
+  if (!s.validee) { $('#recapAde').innerHTML = '<p class="petit">Validez l\'appel (étape ③) pour l\'envoyer vers ADE.</p>'; return; }
   const liste = concernes(s).sort(tri);
   const absents = liste.filter(e => !s.presents[e.id]);
   const retards = liste.filter(e => s.presents[e.id]?.retard);
@@ -511,7 +518,7 @@ function afficherRecapAde(s) {
 let seancesCode = [];
 $('#codeAde').onclick = () => {
   const t = Date.now();
-  seancesCode = D.seances.filter(s => !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date));
+  seancesCode = D.seances.filter(s => s.validee && !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date));
   if (!seancesCode.length) return alert('Toutes les séances sont déjà marquées « saisies dans ADE ».');
   const code = 'ADE:' + JSON.stringify({ v: 1, s: seancesCode.map(s => {
     const l = concernes(s).sort(tri);
@@ -538,7 +545,7 @@ $('#marquerAde').onclick = () => {
 $('#fermerAde').onclick = () => { $('#modaleAde').style.display = 'none'; $('#copierCodeAde').textContent = '📋 Copier'; };
 
 function afficherSeances() {
-  $('#listeSeances').innerHTML = D.seances.slice().sort((a, b) => b.date.localeCompare(a.date)).map(s =>
+  $('#listeSeances').innerHTML = D.seances.filter(s => s.validee).sort((a, b) => b.date.localeCompare(a.date)).map(s =>
     `<li data-id="${s.id}"><span><b>${echapper(s.ref)}</b> · ${echapper(nomsGroupes(s.groupes))}<br>
      <span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} · ${Object.keys(s.presents).length} présent(s) · ${s.saisiAde ? '✅ saisi dans ADE' : '⏳ à saisir dans ADE'}</span></span>
      <span style="white-space:nowrap"><button class="btn mini secondaire" data-action="ouvrir">Ouvrir</button>
@@ -614,9 +621,10 @@ function afficherEdt() {
     return `<li data-uid="${echapper(e.uid)}" class="${s && s.id === D.seanceActive ? 'choisie' : ''} ${enCours ? 'encours' : ''}">
       <span><b>${hm(e.debut)}${e.fin ? '–' + hm(e.fin) : ''} · ${echapper(reference(e.titre))}</b><br>
       <span class="petit">${echapper(nomsGroupes(g))}${e.lieu ? ' · ' + echapper(e.lieu) : ''}</span></span>
-      <span class="tag ${s && Object.keys(s.presents).length ? 'present' : 'carte-non'}">${s && Object.keys(s.presents).length ? Object.keys(s.presents).length + ' présent(s)' : (enCours ? 'En cours' : 'Appel')}</span></li>`;
+      <span class="tag ${s && s.validee ? 'present' : s && Object.keys(s.presents).length ? 'retard' : 'carte-non'}">${s && s.validee ? '✅ ' + Object.keys(s.presents).length + ' présent(s)' : s && Object.keys(s.presents).length ? 'Brouillon' : (enCours ? 'En cours' : 'Appel')}</span></li>`;
   }).join('');
   $('#listeEdt').querySelectorAll('li').forEach(li => li.onclick = () => {
+    nettoyerBrouillons();
     D.seanceActive = seancePourCours(evts.find(x => x.uid === li.dataset.uid)).id;
     enregistrer(); afficherTout();
   });
@@ -630,7 +638,7 @@ const feuilleNom = (n, pris) => {
 };
 function construireExcel() {
   if (!window.XLSX) { alert("Le module Excel n'a pas pu se charger (pas de connexion internet ?). Réessayez avec une connexion."); return null; }
-  const ss0 = D.seances.filter(s => s.groupes.length);
+  const ss0 = D.seances.filter(s => s.validee && s.groupes.length);
   if (!ss0.length) { alert('Aucune séance à exporter.'); return null; }
   const wb = XLSX.utils.book_new(), pris = new Set();
   const refs = [...new Set(ss0.map(s => s.ref))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
@@ -677,7 +685,24 @@ async function envoyerExcel() {
 }
 $('#excelTelecharger').onclick = () => { const d = construireExcel(); if (d) telecharger(NOM_EXCEL, d, TYPE_XLSX); };
 $('#excelPartager').onclick = envoyerExcel;
-$('#terminer').onclick = () => { arreterScan(); planifierSync(); envoyerExcel(); };
+function validerSeance() {
+  const s = seance(); if (!s) return false;
+  if (!s.validee) { s.validee = true; enregistrer(); }
+  return true;
+}
+// Supprime les séances ouvertes mais jamais utilisées (aucune présence, pas validées)
+function nettoyerBrouillons() {
+  D.seances = D.seances.filter(s => s.validee || Object.keys(s.presents).length);
+  if (!D.seances.some(s => s.id === D.seanceActive)) D.seanceActive = null;
+}
+$('#terminer').onclick = () => { arreterScan(); if (!validerSeance()) return; afficherTout(); planifierSync(); envoyerExcel(); };
+$('#validerAppel').onclick = () => {
+  const s = seance(); if (!s) return;
+  const n = concernes(s).filter(e => !s.presents[e.id]).length;
+  if (!confirm('Valider l\'appel de ' + s.ref + ' (' + nomsGroupes(s.groupes) + ') ?\n' + n + ' absent(s).\n\nLa séance ira dans l\'Historique, l\'Excel et la synchro ADE.')) return;
+  validerSeance();
+  if (history.state && history.state.appel) history.back(); else fermerAppel();
+};
 
 // =================== Sauvegarde ===================
 $('#sauvegarder').onclick = () => telecharger('sauvegarde_presence_' + jourISO(new Date()) + '.json', JSON.stringify(D), 'application/json');
@@ -810,7 +835,7 @@ async function github(methode, corps) {
 }
 function entreesAde() {
   const t = Date.now();
-  return D.seances.filter(s => !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date)).map(s => {
+  return D.seances.filter(s => s.validee && !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date)).map(s => {
     const l = concernes(s).sort(tri);
     return { id: s.id, d: new Date(s.date).toLocaleDateString('fr-FR'), h: hm(s.date), t: s.ref, g: nomsGroupes(s.groupes),
       a: l.filter(e => !s.presents[e.id]).map(e => [e.nom, e.prenom]),
@@ -870,6 +895,7 @@ $('#seuilRetard').onchange = ev => { const v = parseInt(ev.target.value, 10); D.
 { // ouvre automatiquement le cours en cours (ou qui commence dans moins de 15 min)
   const t = Date.now();
   const e = (D.edt || []).find(x => new Date(x.debut) - 15 * 60000 <= t && t <= new Date(x.fin || x.debut));
+  nettoyerBrouillons();
   if (e) { D.seanceActive = seancePourCours(e).id; enregistrer(); }
 }
 afficherTout();
