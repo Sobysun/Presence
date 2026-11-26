@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Présence NFC</title>
+<style>
+  :root { --bleu:#1f5fa8; --vert:#1e8a4c; --rouge:#c0392b; --gris:#f2f4f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui, sans-serif; background:#fff; color:#222; }
+  header { background:var(--bleu); color:#fff; padding:12px 16px; font-size:1.15em; font-weight:600; }
+  nav { display:flex; background:var(--gris); border-bottom:1px solid #ddd; }
+  nav button { flex:1; padding:12px 4px; border:none; background:none; font-size:0.95em; color:#555; }
+  nav button.actif { color:var(--bleu); border-bottom:3px solid var(--bleu); font-weight:600; }
+  main { padding:14px; }
+  section { display:none; } section.actif { display:block; }
+  .btn { display:inline-block; padding:12px 16px; border:none; border-radius:8px; background:var(--bleu); color:#fff; font-size:1em; margin:4px 0; width:100%; }
+  .btn.secondaire { background:#e4e8ee; color:#222; }
+  .btn.rouge { background:var(--rouge); }
+  .btn.vert { background:var(--vert); }
+  input, textarea, select { width:100%; padding:10px; font-size:1em; border:1px solid #ccc; border-radius:6px; margin:4px 0 10px; }
+  textarea { min-height:140px; font-family:monospace; font-size:0.9em; }
+  .info { background:var(--gris); padding:10px; border-radius:6px; font-size:0.9em; margin:8px 0; }
+  .alerte { background:#fdecea; color:var(--rouge); padding:10px; border-radius:6px; margin:8px 0; }
+  #dernier { text-align:center; padding:20px 10px; margin:10px 0; border-radius:10px; background:var(--gris); min-height:90px; }
+  #dernier .nom { font-size:1.5em; font-weight:700; }
+  #dernier.ok { background:#e3f5ea; } #dernier.inconnu { background:#fff4e0; } #dernier.deja { background:#e8eefc; }
+  .compteur { font-size:1.1em; font-weight:600; margin:10px 0; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  li .tag { font-size:0.8em; padding:3px 8px; border-radius:10px; white-space:nowrap; }
+  .present { background:#e3f5ea; color:var(--vert); } .absent { background:#fdecea; color:var(--rouge); }
+  .carte-ok { background:#e8eefc; color:var(--bleu); } .carte-non { background:#eee; color:#777; }
+  h3 { margin:18px 0 6px; }
+  #modale { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); padding:20px; z-index:10; }
+  #modale .boite { background:#fff; border-radius:10px; padding:16px; max-height:90vh; overflow:auto; }
+  .petit { font-size:0.8em; color:#777; }
+</style>
+</head>
+<body>
+<header>📋 Présence NFC</header>
+<nav>
+  <button data-onglet="appel" class="actif">Appel</button>
+  <button data-onglet="classe">Classe</button>
+  <button data-onglet="seances">Séances</button>
+  <button data-onglet="reglages">Réglages</button>
+</nav>
+<main>
+
+<!-- APPEL -->
+<section id="appel" class="actif">
+  <div id="nfcAbsent" class="alerte" style="display:none">
+    Ce navigateur ne permet pas la lecture NFC. Il faut un téléphone <b>Android</b> avec le NFC activé, et le navigateur <b>Chrome</b>. La page doit aussi être ouverte en <b>https</b>.
+  </div>
+  <label>Séance</label>
+  <select id="choixSeance"></select>
+  <button class="btn secondaire" id="nouvelleSeance">+ Nouvelle séance</button>
+  <button class="btn vert" id="demarrer">▶ Démarrer le scan NFC</button>
+  <div id="etatScan" class="info">Scan arrêté.</div>
+  <div id="dernier"><div class="petit">Approchez une carte étudiante du dos du téléphone</div></div>
+  <div class="compteur" id="compteur"></div>
+  <h3>Liste de la séance</h3>
+  <p class="petit">Touchez un nom pour le marquer présent ou absent à la main.</p>
+  <ul id="listeSeance"></ul>
+</section>
+
+<!-- CLASSE -->
+<section id="classe">
+  <h3>Importer la liste des étudiants</h3>
+  <p class="petit">Une ligne par étudiant, au format <b>Nom;Prénom;N° étudiant</b>. Vous pouvez copier-coller depuis Excel (les tabulations sont acceptées).</p>
+  <textarea id="zoneImport" placeholder="DUPONT;Marie;22401234&#10;MARTIN;Lucas;22405678"></textarea>
+  <button class="btn" id="importer">Ajouter à la classe</button>
+  <h3>Étudiants (<span id="nbEtudiants">0</span>)</h3>
+  <p class="petit">« Carte associée » signifie que la carte a déjà été badgée une fois et que l'étudiant est reconnu automatiquement. Touchez un nom pour dissocier la carte ou supprimer l'étudiant.</p>
+  <ul id="listeClasse"></ul>
+</section>
+
+<!-- SEANCES -->
+<section id="seances">
+  <h3>Historique</h3>
+  <ul id="listeSeances"></ul>
+  <button class="btn" id="exportTout">⬇ Exporter toutes les séances (Excel/CSV)</button>
+</section>
+
+<!-- REGLAGES -->
+<section id="reglages">
+  <h3>Sauvegarde</h3>
+  <p class="petit">Les données restent uniquement dans ce navigateur, sur ce téléphone. Faites une sauvegarde régulièrement : si vous videz les données de Chrome, tout sera perdu.</p>
+  <button class="btn" id="sauvegarder">⬇ Télécharger une sauvegarde</button>
+  <label class="btn secondaire" style="text-align:center">⬆ Restaurer une sauvegarde
+    <input type="file" id="restaurer" accept=".json" style="display:none">
+  </label>
+  <h3>Test de lecture</h3>
+  <p class="petit">Le dernier identifiant de carte lu s'affiche ici. Il sert à vérifier que votre téléphone lit bien les cartes.</p>
+  <div class="info" id="dernierUid">Aucune carte lue.</div>
+  <h3>Tout effacer</h3>
+  <button class="btn rouge" id="toutEffacer">Effacer toutes les données</button>
+</section>
+</main>
+
+<!-- MODALE ASSOCIATION -->
+<div id="modale"><div class="boite">
+  <h3 style="margin-top:0">Carte inconnue</h3>
+  <p>À quel étudiant appartient cette carte ?</p>
+  <input id="filtreModale" placeholder="Rechercher un nom…">
+  <ul id="listeModale"></ul>
+  <button class="btn secondaire" id="annulerModale">Annuler</button>
+</div></div>
+
+<script>
+// ---------- Données ----------
+const CLE = 'presence-nfc-v1';
+let D = { etudiants: [], seances: [], seanceActive: null };
+function charger() {
+  try { const s = localStorage.getItem(CLE); if (s) D = JSON.parse(s); } catch (e) {}
+}
+function enregistrer() {
+  try { localStorage.setItem(CLE, JSON.stringify(D)); } catch (e) { alert("Impossible d'enregistrer les données dans ce navigateur."); }
+}
+const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const $ = s => document.querySelector(s);
+const nomComplet = e => e.nom.toUpperCase() + ' ' + e.prenom;
+const tri = (a, b) => nomComplet(a).localeCompare(nomComplet(b), 'fr');
+const heure = () => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+function echapper(t) { return String(t).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+
+// ---------- Onglets ----------
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.remove('actif'));
+  document.querySelectorAll('section').forEach(x => x.classList.remove('actif'));
+  b.classList.add('actif'); $('#' + b.dataset.onglet).classList.add('actif');
+  afficherTout();
+});
+
+// ---------- Classe ----------
+$('#importer').onclick = () => {
+  const lignes = $('#zoneImport').value.split('\n').map(l => l.trim()).filter(Boolean);
+  let n = 0;
+  for (const l of lignes) {
+    const p = l.split(/[;\t,]/).map(x => x.trim());
+    if (!p[0]) continue;
+    if (/^nom$/i.test(p[0])) continue; // ligne d'en-tête
+    const num = p[2] || '';
+    if (num && D.etudiants.some(e => e.num === num)) continue; // doublon
+    D.etudiants.push({ id: id(), nom: p[0], prenom: p[1] || '', num, uid: null });
+    n++;
+  }
+  enregistrer(); $('#zoneImport').value = '';
+  alert(n + ' étudiant(s) ajouté(s).'); afficherTout();
+};
+function afficherClasse() {
+  $('#nbEtudiants').textContent = D.etudiants.length;
+  $('#listeClasse').innerHTML = D.etudiants.slice().sort(tri).map(e =>
+    `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}<br><span class="petit">${echapper(e.num)}</span></span>
+     <span class="tag ${e.uid ? 'carte-ok' : 'carte-non'}">${e.uid ? 'Carte associée' : 'Pas de carte'}</span></li>`).join('');
+  $('#listeClasse').querySelectorAll('li').forEach(li => li.onclick = () => {
+    const e = D.etudiants.find(x => x.id === li.dataset.id);
+    if (e.uid && confirm('Dissocier la carte de ' + nomComplet(e) + ' ?')) { e.uid = null; enregistrer(); afficherTout(); return; }
+    if (!e.uid && confirm('Supprimer ' + nomComplet(e) + ' de la classe ?')) {
+      D.etudiants = D.etudiants.filter(x => x.id !== e.id); enregistrer(); afficherTout();
+    }
+  });
+}
+
+// ---------- Séances ----------
+function seance() { return D.seances.find(s => s.id === D.seanceActive); }
+$('#nouvelleSeance').onclick = () => {
+  const def = new Date().toLocaleDateString('fr-FR') + ' ' + heure() + ' – ';
+  const lib = prompt('Nom de la séance (ex. date, groupe, matière) :', def + 'TD');
+  if (!lib) return;
+  const s = { id: id(), libelle: lib, date: new Date().toISOString(), presents: {} };
+  D.seances.push(s); D.seanceActive = s.id; enregistrer(); afficherTout();
+};
+$('#choixSeance').onchange = e => { D.seanceActive = e.target.value; enregistrer(); afficherTout(); };
+function afficherAppel() {
+  $('#choixSeance').innerHTML = D.seances.length
+    ? D.seances.slice().reverse().map(s => `<option value="${s.id}" ${s.id === D.seanceActive ? 'selected' : ''}>${echapper(s.libelle)}</option>`).join('')
+    : '<option>Aucune séance : créez-en une</option>';
+  const s = seance();
+  if (!s) { $('#listeSeance').innerHTML = ''; $('#compteur').textContent = ''; return; }
+  const nbP = Object.keys(s.presents).filter(k => D.etudiants.some(e => e.id === k)).length;
+  $('#compteur').textContent = `Présents : ${nbP} / ${D.etudiants.length}`;
+  $('#listeSeance').innerHTML = D.etudiants.slice().sort(tri).map(e => {
+    const p = s.presents[e.id];
+    return `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span>
+      <span class="tag ${p ? 'present' : 'absent'}">${p ? 'Présent ' + p.heure + (p.manuel ? ' (manuel)' : '') : 'Absent'}</span></li>`;
+  }).join('');
+  $('#listeSeance').querySelectorAll('li').forEach(li => li.onclick = () => {
+    const s = seance(); const k = li.dataset.id;
+    if (s.presents[k]) delete s.presents[k]; else s.presents[k] = { heure: heure(), manuel: true };
+    enregistrer(); afficherAppel();
+  });
+}
+function afficherSeances() {
+  $('#listeSeances').innerHTML = D.seances.slice().reverse().map(s =>
+    `<li data-id="${s.id}"><span>${echapper(s.libelle)}<br><span class="petit">${Object.keys(s.presents).length} présent(s)</span></span>
+     <span><button class="btn secondaire" style="width:auto;padding:6px 10px" data-action="csv">CSV</button>
+     <button class="btn rouge" style="width:auto;padding:6px 10px" data-action="suppr">✕</button></span></li>`).join('');
+  $('#listeSeances').querySelectorAll('button').forEach(b => b.onclick = ev => {
+    const sid = b.closest('li').dataset.id;
+    if (b.dataset.action === 'csv') exporterCSV([D.seances.find(s => s.id === sid)]);
+    else if (confirm('Supprimer cette séance ?')) {
+      D.seances = D.seances.filter(s => s.id !== sid);
+      if (D.seanceActive === sid) D.seanceActive = null;
+      enregistrer(); afficherTout();
+    }
+  });
+}
+
+// ---------- Export ----------
+function telecharger(nom, contenu, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([contenu], { type }));
+  a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function exporterCSV(liste) {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  let lignes = [['Séance', 'Nom', 'Prénom', 'N° étudiant', 'Statut', 'Heure', 'Saisie'].map(q).join(';')];
+  for (const s of liste) for (const e of D.etudiants.slice().sort(tri)) {
+    const p = s.presents[e.id];
+    lignes.push([s.libelle, e.nom, e.prenom, e.num, p ? 'Présent' : 'Absent', p ? p.heure : '', p ? (p.manuel ? 'Manuelle' : 'Carte') : ''].map(q).join(';'));
+  }
+  telecharger((liste.length === 1 ? 'presence_' + liste[0].libelle : 'presences_toutes').replace(/[^\w\-]+/g, '_') + '.csv',
+    '﻿' + lignes.join('\r\n'), 'text/csv;charset=utf-8');
+}
+$('#exportTout').onclick = () => D.seances.length ? exporterCSV(D.seances) : alert('Aucune séance.');
+$('#sauvegarder').onclick = () => telecharger('sauvegarde_presence_' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(D, null, 1), 'application/json');
+$('#restaurer').onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    try { const d = JSON.parse(t); if (!d.etudiants) throw 0;
+      if (confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) { D = d; enregistrer(); afficherTout(); alert('Sauvegarde restaurée.'); }
+    } catch (e) { alert('Fichier de sauvegarde invalide.'); }
+  });
+};
+$('#toutEffacer').onclick = () => {
+  if (confirm('Effacer TOUTES les données (classe, cartes, séances) ?') && confirm('Vraiment ? Cette action est définitive.')) {
+    D = { etudiants: [], seances: [], seanceActive: null }; enregistrer(); afficherTout();
+  }
+};
+
+// ---------- NFC ----------
+let scanEnCours = false, dernierePasse = { uid: null, t: 0 }, uidEnAttente = null;
+if (!('NDEFReader' in window)) { $('#nfcAbsent').style.display = 'block'; $('#demarrer').disabled = true; $('#demarrer').style.opacity = 0.5; }
+
+$('#demarrer').onclick = async () => {
+  if (scanEnCours) return;
+  if (!seance()) { alert("Créez ou choisissez d'abord une séance."); return; }
+  try {
+    const lecteur = new NDEFReader();
+    await lecteur.scan();
+    scanEnCours = true;
+    $('#etatScan').textContent = '🟢 Scan actif. Gardez cette page ouverte et l\'écran allumé.';
+    $('#demarrer').textContent = 'Scan en cours…';
+    lecteur.onreading = ev => carteLue(ev.serialNumber);
+    lecteur.onreadingerror = () => afficherDernier('inconnu', 'Lecture échouée', 'Réessayez en laissant la carte une seconde contre le téléphone.');
+  } catch (err) {
+    $('#etatScan').textContent = '🔴 Impossible de démarrer le NFC : ' + err.message + '. Vérifiez que le NFC est activé dans les paramètres Android et autorisez l\'accès NFC à la page.';
+  }
+};
+
+function afficherDernier(classe, titre, sous) {
+  const d = $('#dernier'); d.className = classe;
+  d.innerHTML = `<div class="nom">${echapper(titre)}</div><div class="petit">${echapper(sous || '')}</div>`;
+}
+function bip(ok) {
+  try { navigator.vibrate && navigator.vibrate(ok ? 120 : [80, 60, 80]); } catch (e) {}
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = ok ? 880 : 300; o.connect(g); g.connect(ctx.destination); g.gain.value = 0.1;
+    o.start(); o.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
+
+function carteLue(uid) {
+  if (!uid) { afficherDernier('inconnu', 'Identifiant illisible', 'Cette carte ne transmet pas de numéro de série.'); bip(false); return; }
+  $('#dernierUid').textContent = 'Dernier identifiant lu : ' + uid + ' (' + heure() + ')';
+  const now = Date.now();
+  if (uid === dernierePasse.uid && now - dernierePasse.t < 3000) return; // anti double-lecture
+  dernierePasse = { uid, t: now };
+  const s = seance(); if (!s) return;
+  const e = D.etudiants.find(x => x.uid === uid);
+  if (e) {
+    if (s.presents[e.id]) { afficherDernier('deja', nomComplet(e), 'Déjà enregistré à ' + s.presents[e.id].heure); bip(true); }
+    else { s.presents[e.id] = { heure: heure(), manuel: false }; enregistrer(); afficherDernier('ok', '✓ ' + nomComplet(e), 'Présent à ' + heure()); bip(true); afficherAppel(); }
+  } else {
+    bip(false); afficherDernier('inconnu', 'Carte inconnue', 'Choisissez l\'étudiant dans la liste');
+    ouvrirModale(uid);
+  }
+}
+
+function ouvrirModale(uid) {
+  uidEnAttente = uid; $('#filtreModale').value = ''; remplirModale(); $('#modale').style.display = 'block';
+}
+function remplirModale() {
+  const f = $('#filtreModale').value.toLowerCase();
+  const sansCarte = D.etudiants.filter(e => !e.uid && nomComplet(e).toLowerCase().includes(f)).sort(tri);
+  $('#listeModale').innerHTML = sansCarte.length
+    ? sansCarte.map(e => `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span><span class="petit">${echapper(e.num)}</span></li>`).join('')
+    : '<li class="petit">Aucun étudiant sans carte. Importez la liste de la classe dans l\'onglet « Classe ».</li>';
+  $('#listeModale').querySelectorAll('li[data-id]').forEach(li => li.onclick = () => {
+    const e = D.etudiants.find(x => x.id === li.dataset.id);
+    e.uid = uidEnAttente;
+    const s = seance(); if (s) s.presents[e.id] = { heure: heure(), manuel: false };
+    enregistrer(); fermerModale();
+    afficherDernier('ok', '✓ ' + nomComplet(e), 'Carte associée et présence enregistrée'); afficherTout();
+  });
+}
+$('#filtreModale').oninput = remplirModale;
+function fermerModale() { $('#modale').style.display = 'none'; uidEnAttente = null; }
+$('#annulerModale').onclick = fermerModale;
+
+// ---------- Démarrage ----------
+function afficherTout() { afficherAppel(); afficherClasse(); afficherSeances(); }
+charger(); afficherTout();
+</script>
+</body>
+</html>
