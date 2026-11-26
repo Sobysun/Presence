@@ -49,6 +49,10 @@
   label.case input { width:22px; height:22px; margin:0; }
   .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#bbb; margin-right:6px; }
   .pastille.on { background:var(--vert); animation:clign 1s infinite; }
+  .retard { background:#fff4e0; color:var(--orange); }
+  .ade { border:2px dashed var(--bleu); border-radius:12px; padding:12px; margin:8px 0; }
+  .ade ol { margin:6px 0 6px 20px; padding:0; } .ade li { display:list-item; border:none; padding:3px 0; }
+  .ade .vide { color:var(--vert); font-weight:600; }
   @keyframes clign { 50% { opacity:0.3; } }
 </style>
 </head>
@@ -89,6 +93,11 @@
   <button class="btn" id="terminer">💾 Terminer l'appel et mettre à jour l'Excel</button>
   <p class="petit">Arrête le scan, recalcule le fichier Presences.xlsx avec toutes les séances et ouvre le menu d'envoi vers votre drive.</p>
 
+  <div class="etape">④ REPORTER DANS ADE (UPplanning)</div>
+  <button class="btn" id="codeAde">💻 Code pour ADE (séances pas encore saisies)</button>
+  <p class="petit">À coller dans le favori « Saisie ADE » sur votre PC, qui remplit la fenêtre ADE automatiquement. Installation : <b>sobysun.github.io/Presence/ade.html</b> (à ouvrir sur le PC).</p>
+  <div id="recapAde"></div>
+
   <h3>Liste de la séance</h3>
   <p class="petit">Touchez un nom pour le passer présent ou absent à la main.</p>
   <ul id="listeSeance"></ul>
@@ -117,7 +126,7 @@
 <section id="seances">
   <button class="btn" id="excelPartager">📤 Mettre à jour l'Excel (envoyer vers mon drive)</button>
   <button class="btn secondaire" id="excelTelecharger">⬇ Télécharger l'Excel sur le téléphone</button>
-  <p class="petit">Fichier unique <b>Presences.xlsx</b> : un onglet par cours (R1.03, R5.01…), une ligne par étudiant, une colonne par séance (P / A), et les totaux.</p>
+  <p class="petit">Fichier unique <b>Presences.xlsx</b> : un onglet par cours (R1.03, R5.01…), une ligne par étudiant, une colonne par séance (P = présent, R = retard, A = absent), et les totaux.</p>
   <h3>Séances</h3>
   <ul id="listeSeances"></ul>
 </section>
@@ -132,6 +141,9 @@
     <input type="file" id="importIcs" accept=".ics,text/calendar" style="display:none">
   </label>
   <p class="petit">L'adresse reste uniquement sur ce téléphone.</p>
+  <h3>Retards</h3>
+  <p class="petit">Une carte badgée plus de <b>X minutes</b> après le début du cours est notée « Retard » (comme dans ADE).</p>
+  <input type="number" id="seuilRetard" min="0" max="120" step="1" style="width:120px"> minutes
   <h3>Sauvegarde</h3>
   <button class="btn secondaire" id="sauvegarder">⬇ Télécharger une sauvegarde</button>
   <label class="btn secondaire">⬆ Restaurer une sauvegarde
@@ -153,6 +165,17 @@
   <button class="btn secondaire" id="annulerModale">Annuler</button>
 </div></div>
 
+<!-- MODALE : code ADE -->
+<div class="modale" id="modaleAde"><div class="boite">
+  <h3 style="margin-top:0">Code pour ADE</h3>
+  <p class="petit" id="infoCodeAde"></p>
+  <textarea id="texteCodeAde" readonly style="min-height:90px"></textarea>
+  <button class="btn" id="envoyerCodeAde">📤 M'envoyer le code (mail, Teams…)</button>
+  <button class="btn secondaire" id="copierCodeAde">📋 Copier</button>
+  <button class="btn vert" id="marquerAde">✅ Marquer ces séances comme saisies dans ADE</button>
+  <button class="btn secondaire" id="fermerAde">Fermer</button>
+</div></div>
+
 <!-- MODALE : choix de groupes (cas rares) -->
 <div class="modale" id="modaleGroupes"><div class="boite">
   <h3 style="margin-top:0">Groupes de ce cours</h3>
@@ -167,7 +190,7 @@
 // =================== Données ===================
 const CLE = 'presence-nfc-v1';
 let D = {};
-const vide = () => ({ etudiants: [], groupes: [], seances: [], seanceActive: null, edt: null, edtMaj: null, icsUrl: '', groupeVu: null, memo: {} });
+const vide = () => ({ etudiants: [], groupes: [], seances: [], seanceActive: null, edt: null, edtMaj: null, icsUrl: '', groupeVu: null, memo: {}, seuilRetard: 10 });
 const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const $ = s => document.querySelector(s);
 const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -187,6 +210,7 @@ function charger() {
 }
 function migrer() {
   D.memo = D.memo || {};
+  if (typeof D.seuilRetard !== 'number') D.seuilRetard = 10;
   D.etudiants.forEach(e => {
     if (!e.groupes) e.groupes = e.groupeId ? [e.groupeId] : [];
     delete e.groupeId;
@@ -388,20 +412,75 @@ function afficherAppel() {
   $('#compteur').textContent = `Présents : ${nbP} / ${concernes(s).length}`;
   $('#listeSeance').innerHTML = liste.map(e => {
     const p = s.presents[e.id], hors = !e.groupes.some(g => s.groupes.includes(g));
-    return `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span>
-      <span class="tag ${p ? (hors ? 'hors-tag' : 'present') : 'absent'}">${p ? 'Présent ' + p.heure + (p.manuel ? ' (manuel)' : '') + (hors ? ' · autre groupe' : '') : 'Absent'}</span></li>`;
+    const cls = !p ? 'absent' : hors ? 'hors-tag' : p.retard ? 'retard' : 'present';
+    const txt = !p ? 'Absent' : (p.retard ? 'Retard ' : 'Présent ') + p.heure + (p.manuel ? ' (manuel)' : '') + (hors ? ' · autre groupe' : '');
+    return `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span><span class="tag ${cls}">${txt}</span></li>`;
   }).join('');
+  // Toucher un nom : Absent → Présent → Retard → Absent
   $('#listeSeance').querySelectorAll('li[data-id]').forEach(li => li.onclick = () => {
-    const k = li.dataset.id;
-    if (s.presents[k]) delete s.presents[k]; else s.presents[k] = { heure: heure(), manuel: true };
+    const k = li.dataset.id, p = s.presents[k];
+    if (!p) s.presents[k] = { heure: heure(), manuel: true };
+    else if (!p.retard) { p.retard = true; p.manuel = true; }
+    else delete s.presents[k];
     enregistrer(); afficherAppel();
   });
+  afficherRecapAde(s);
 }
+
+// Récapitulatif à reporter dans la fenêtre « Saisie des présences » d'ADE
+function afficherRecapAde(s) {
+  const liste = concernes(s).sort(tri);
+  const absents = liste.filter(e => !s.presents[e.id]);
+  const retards = liste.filter(e => s.presents[e.id]?.retard);
+  const lignes = l => l.length ? '<ol>' + l.map(e => `<li>${echapper(nomComplet(e))}</li>`).join('') + '</ol>' : '<div class="vide">Aucun</div>';
+  $('#recapAde').innerHTML = `<div class="ade">
+    <b>${echapper(s.titre || s.ref)}</b><br><span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} · ${hm(s.date)}${s.fin ? '–' + hm(s.fin) : ''} · ${echapper(nomsGroupes(s.groupes))}</span>
+    <p class="petit">Dans UPplanning : <b>clic droit sur ce cours → Assiduités → Assiduité</b>. Tout le monde est « Présent » par défaut : changez uniquement les étudiants ci-dessous (même ordre alphabétique qu'ADE), puis <b>Enregistrer</b>.</p>
+    <b style="color:var(--rouge)">➜ Absent (${absents.length})</b>${lignes(absents)}
+    <b style="color:var(--orange)">➜ Retard (${retards.length})</b>${lignes(retards)}
+    <button class="btn mini secondaire" id="copierAde">📋 Copier la liste</button>
+    <label class="case" style="border:none;padding:6px 0"><input type="checkbox" id="saisiAde" ${s.saisiAde ? 'checked' : ''}> Saisi dans ADE</label></div>`;
+  $('#copierAde').onclick = async () => {
+    const t = `${s.titre || s.ref} – ${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} – ${nomsGroupes(s.groupes)}\nAbsents : ${absents.map(nomComplet).join(', ') || 'aucun'}\nRetards : ${retards.map(nomComplet).join(', ') || 'aucun'}`;
+    try { await navigator.clipboard.writeText(t); $('#copierAde').textContent = '✓ Copié'; } catch (e) { prompt('Copiez ce texte :', t); }
+  };
+  $('#saisiAde').onchange = ev => { s.saisiAde = ev.target.checked; enregistrer(); afficherSeances(); };
+}
+
+// Code transmis au favori « Saisie ADE » : toutes les séances déjà commencées et pas encore saisies
+let seancesCode = [];
+$('#codeAde').onclick = () => {
+  const t = Date.now();
+  seancesCode = D.seances.filter(s => !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date));
+  if (!seancesCode.length) return alert('Toutes les séances sont déjà marquées « saisies dans ADE ».');
+  const code = 'ADE:' + JSON.stringify({ v: 1, s: seancesCode.map(s => {
+    const l = concernes(s).sort(tri);
+    return { d: new Date(s.date).toLocaleDateString('fr-FR'), h: hm(s.date), t: s.ref,
+      a: l.filter(e => !s.presents[e.id]).map(e => [e.nom, e.prenom]),
+      r: l.filter(e => s.presents[e.id]?.retard).map(e => [e.nom, e.prenom]) };
+  }) });
+  $('#texteCodeAde').value = code;
+  $('#infoCodeAde').textContent = seancesCode.length + ' séance(s) : ' + seancesCode.map(s => s.ref + ' ' + new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm(s.date)).join(', ');
+  $('#modaleAde').style.display = 'block';
+};
+$('#copierCodeAde').onclick = async () => {
+  try { await navigator.clipboard.writeText($('#texteCodeAde').value); $('#copierCodeAde').textContent = '✓ Copié'; }
+  catch (e) { $('#texteCodeAde').select(); document.execCommand('copy'); }
+};
+$('#envoyerCodeAde').onclick = async () => {
+  try { await navigator.share({ title: 'Code ADE', text: $('#texteCodeAde').value }); }
+  catch (e) { if (e.name !== 'AbortError') alert("Partage impossible ici : utilisez « Copier »."); }
+};
+$('#marquerAde').onclick = () => {
+  seancesCode.forEach(s => s.saisiAde = true); enregistrer();
+  $('#modaleAde').style.display = 'none'; afficherTout();
+};
+$('#fermerAde').onclick = () => { $('#modaleAde').style.display = 'none'; $('#copierCodeAde').textContent = '📋 Copier'; };
 
 function afficherSeances() {
   $('#listeSeances').innerHTML = D.seances.slice().sort((a, b) => b.date.localeCompare(a.date)).map(s =>
     `<li data-id="${s.id}"><span><b>${echapper(s.ref)}</b> · ${echapper(nomsGroupes(s.groupes))}<br>
-     <span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} · ${Object.keys(s.presents).length} présent(s)</span></span>
+     <span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} · ${Object.keys(s.presents).length} présent(s) · ${s.saisiAde ? '✅ saisi dans ADE' : '⏳ à saisir dans ADE'}</span></span>
      <span style="white-space:nowrap"><button class="btn mini secondaire" data-action="ouvrir">Ouvrir</button>
      <button class="btn mini rouge" data-action="suppr">✕</button></span></li>`).join('') || '<li class="petit">Aucune séance.</li>';
   $('#listeSeances').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -506,7 +585,7 @@ function construireExcel() {
     const lignes = etus.map(e => {
       let p = 0, a = 0;
       const cases = ss.map(s => {
-        if (s.presents[e.id]) { p++; return 'P'; }
+        if (s.presents[e.id]) { p++; return s.presents[e.id].retard ? 'R' : 'P'; }
         if (e.groupes.some(g => s.groupes.includes(g))) { a++; return 'A'; }
         return '';
       });
@@ -609,9 +688,11 @@ function carteLue(uid) {
 function marquer(e, s) {
   const hors = !e.groupes.some(g => s.groupes.includes(g));
   if (s.presents[e.id]) { afficherDernier('deja', nomComplet(e), 'Déjà enregistré à ' + s.presents[e.id].heure); bip(true); return; }
-  s.presents[e.id] = { heure: heure(), manuel: false };
+  const retard = s.edtUid && Date.now() > new Date(s.date).getTime() + (D.seuilRetard || 0) * 60000;
+  s.presents[e.id] = { heure: heure(), manuel: false, retard };
   enregistrer(); bip(!hors);
-  afficherDernier(hors ? 'hors' : 'ok', '✓ ' + nomComplet(e), hors ? '⚠ Pas dans ce groupe (' + nomsGroupes(e.groupes) + '), enregistré quand même' : 'Présent à ' + heure());
+  afficherDernier(hors || retard ? 'hors' : 'ok', '✓ ' + nomComplet(e),
+    hors ? '⚠ Pas dans ce groupe (' + nomsGroupes(e.groupes) + '), enregistré quand même' : retard ? '⏰ En retard (' + heure() + ')' : 'Présent à ' + heure());
   afficherAppel();
 }
 function ouvrirModale(uid) { uidEnAttente = uid; $('#filtreModale').value = ''; remplirModale(); $('#modaleCarte').style.display = 'block'; }
@@ -637,6 +718,8 @@ $('#annulerModale').onclick = fermerModale;
 function afficherTout() { afficherAppel(); afficherClasse(); afficherSeances(); }
 charger();
 if (D.icsUrl) $('#urlIcs').value = D.icsUrl;
+$('#seuilRetard').value = D.seuilRetard;
+$('#seuilRetard').onchange = ev => { const v = parseInt(ev.target.value, 10); D.seuilRetard = isNaN(v) ? 10 : Math.max(0, v); enregistrer(); };
 { // ouvre automatiquement le cours en cours (ou qui commence dans moins de 15 min)
   const t = Date.now();
   const e = (D.edt || []).find(x => new Date(x.debut) - 15 * 60000 <= t && t <= new Date(x.fin || x.debut));
