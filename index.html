@@ -50,6 +50,27 @@
   .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#bbb; margin-right:6px; }
   .pastille.on { background:var(--vert); animation:clign 1s infinite; }
   .retard { background:#fff4e0; color:var(--orange); }
+  #modeAppel { display:none; position:fixed; inset:0; background:#fff; z-index:8; flex-direction:column; }
+  #modeAppel.ouvert { display:flex; }
+  .hautAppel { padding:10px 12px 6px; border-bottom:2px solid #ddd; background:#fff; }
+  #titreAppel { font-weight:800; font-size:1.15em; } #titreAppel .petit { font-weight:400; }
+  .hautAppel #dernier { min-height:60px; padding:10px; margin:6px 0; }
+  .hautAppel #dernier .nom { font-size:1.3em; }
+  .hautAppel .info { margin:4px 0; padding:6px 10px; }
+  .ligneCompteur { display:flex; justify-content:space-between; align-items:center; }
+  .ligneCompteur .compteur { margin:4px 0; text-align:left; }
+  .ligneCompteur input { width:auto; margin:0 4px 0 0; }
+  #listeSeance { flex:1; overflow-y:auto; padding:0 8px; }
+  #listeSeance li { padding:8px 4px; }
+  #listeSeance .nomEtu { flex:1; min-width:0; }
+  #listeSeance .nomEtu b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .choix { display:flex; gap:4px; flex:none; }
+  .choix button { border:1px solid #ccc; background:#fff; border-radius:8px; padding:10px 0; width:44px; font-weight:700; font-size:0.95em; color:#999; }
+  .choix button.on[data-v=P] { background:var(--vert); color:#fff; border-color:var(--vert); }
+  .choix button.on[data-v=R] { background:var(--orange); color:#fff; border-color:var(--orange); }
+  .choix button.on[data-v=A] { background:var(--rouge); color:#fff; border-color:var(--rouge); }
+  .basAppel { display:flex; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); border-top:2px solid #ddd; background:#fff; }
+  .basAppel .btn { margin:0; padding:14px 6px; font-size:0.95em; }
   .ade { border:2px dashed var(--bleu); border-radius:12px; padding:12px; margin:8px 0; }
   .ade ol { margin:6px 0 6px 20px; padding:0; } .ade li { display:list-item; border:none; padding:3px 0; }
   .ade .vide { color:var(--vert); font-weight:600; }
@@ -83,11 +104,8 @@
 
   <div class="etape">② FAIRE L'APPEL</div>
   <div id="seanceCourante"></div>
-  <button class="btn vert" id="demarrer">▶ Démarrer le scan des cartes</button>
-  <button class="btn rouge" id="arreter" style="display:none">⏹ Arrêter le scan</button>
-  <div class="info" id="etatScan"><span class="pastille"></span>Scan arrêté.</div>
-  <div id="dernier"><div class="petit">Le nom de l'étudiant s'affichera ici à chaque carte badgée</div></div>
-  <div class="compteur" id="compteur"></div>
+  <button class="btn vert" id="demarrer">▶ Commencer l'appel</button>
+  <div class="compteur" id="compteurAccueil"></div>
 
   <div class="etape">③ TERMINER</div>
   <button class="btn" id="terminer">💾 Terminer l'appel et mettre à jour l'Excel</button>
@@ -97,10 +115,6 @@
   <button class="btn" id="codeAde">💻 Code pour ADE (séances pas encore saisies)</button>
   <p class="petit">À coller dans le favori « Saisie ADE » sur votre PC, qui remplit la fenêtre ADE automatiquement. Installation : <b>sobysun.github.io/Presence/ade.html</b> (à ouvrir sur le PC).</p>
   <div id="recapAde"></div>
-
-  <h3>Liste de la séance</h3>
-  <p class="petit">Touchez un nom pour le passer présent ou absent à la main.</p>
-  <ul id="listeSeance"></ul>
 </section>
 
 <!-- ============ GROUPES ============ -->
@@ -155,6 +169,23 @@
   <button class="btn rouge" id="toutEffacer">Effacer toutes les données</button>
 </section>
 </main>
+
+<!-- ÉCRAN D'APPEL (plein écran) -->
+<div id="modeAppel">
+  <div class="hautAppel">
+    <div id="titreAppel"></div>
+    <div class="info" id="etatScan"><span class="pastille"></span>Scan arrêté.</div>
+    <div id="dernier"><div class="petit">Le nom de l'étudiant s'affichera ici à chaque carte badgée</div></div>
+    <div class="ligneCompteur"><span class="compteur" id="compteur"></span>
+      <label class="petit"><input type="checkbox" id="filtreAbsents"> Non badgés seulement</label></div>
+  </div>
+  <ul id="listeSeance"></ul>
+  <div class="basAppel">
+    <button class="btn rouge" id="arreter">⏹ Arrêter le scan</button>
+    <button class="btn vert" id="reprendre" style="display:none">▶ Reprendre le scan</button>
+    <button class="btn secondaire" id="accueil">🏠 Accueil</button>
+  </div>
+</div>
 
 <!-- MODALE : carte inconnue -->
 <div class="modale" id="modaleCarte"><div class="boite">
@@ -390,9 +421,9 @@ function afficherAppel() {
   const s = seance();
   if (!s) {
     $('#seanceCourante').innerHTML = '<div class="info">Touchez une séance ci-dessus pour commencer.</div>';
-    $('#listeSeance').innerHTML = ''; $('#compteur').textContent = ''; $('#demarrer').disabled = true; return;
+    $('#listeSeance').innerHTML = ''; $('#compteur').textContent = ''; $('#compteurAccueil').textContent = ''; $('#demarrer').disabled = true; return;
   }
-  $('#demarrer').disabled = !('NDEFReader' in window);
+  $('#demarrer').disabled = false;
   const vides = s.groupes.filter(g => !etudiantsGroupe(g).length);
   $('#seanceCourante').innerHTML = `<div class="carteSeance">
       <div class="ref">${echapper(s.ref)}</div>
@@ -408,24 +439,38 @@ function afficherAppel() {
     enregistrer(); afficherTout();
   });
   if ($('#allerImport')) $('#allerImport').onclick = () => { D.groupeVu = vides[0]; allerA('classe'); };
-  const liste = listeAppel(s), nbP = Object.keys(s.presents).filter(k => concernes(s).some(e => e.id === k)).length;
-  $('#compteur').textContent = `Présents : ${nbP} / ${concernes(s).length}`;
-  $('#listeSeance').innerHTML = liste.map(e => {
-    const p = s.presents[e.id], hors = !e.groupes.some(g => s.groupes.includes(g));
-    const cls = !p ? 'absent' : hors ? 'hors-tag' : p.retard ? 'retard' : 'present';
-    const txt = !p ? 'Absent' : (p.retard ? 'Retard ' : 'Présent ') + p.heure + (p.manuel ? ' (manuel)' : '') + (hors ? ' · autre groupe' : '');
-    return `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span><span class="tag ${cls}">${txt}</span></li>`;
-  }).join('');
-  // Toucher un nom : Absent → Présent → Retard → Absent
-  $('#listeSeance').querySelectorAll('li[data-id]').forEach(li => li.onclick = () => {
-    const k = li.dataset.id, p = s.presents[k];
-    if (!p) s.presents[k] = { heure: heure(), manuel: true };
-    else if (!p.retard) { p.retard = true; p.manuel = true; }
-    else delete s.presents[k];
-    enregistrer(); afficherAppel();
-  });
+  const nbP = Object.keys(s.presents).filter(k => concernes(s).some(e => e.id === k)).length;
+  $('#compteurAccueil').textContent = Object.keys(s.presents).length ? `Présents : ${nbP} / ${concernes(s).length}` : '';
+  $('#demarrer').textContent = Object.keys(s.presents).length ? "▶ Reprendre l'appel" : "▶ Commencer l'appel";
+  afficherListeAppel();
   afficherRecapAde(s);
 }
+
+// Liste de l'écran d'appel : un bouton P / R / A par étudiant (contrôle manuel, ex. carte oubliée)
+function afficherListeAppel() {
+  const s = seance(); if (!s) return;
+  const conc = concernes(s), nbP = Object.keys(s.presents).filter(k => conc.some(e => e.id === k)).length;
+  const nbR = conc.filter(e => s.presents[e.id]?.retard).length;
+  $('#titreAppel').innerHTML = `${echapper(s.ref)} · ${echapper(nomsGroupes(s.groupes))}<br><span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} · ${hm(s.date)}${s.fin ? '–' + hm(s.fin) : ''}${s.lieu ? ' · ' + echapper(s.lieu) : ''}</span>`;
+  $('#compteur').textContent = `✅ ${nbP} / ${conc.length}` + (nbR ? ` (dont ${nbR} retard${nbR > 1 ? 's' : ''})` : '') + ` · ❌ ${conc.length - nbP}`;
+  const seulementAbsents = $('#filtreAbsents').checked;
+  const liste = listeAppel(s).filter(e => !seulementAbsents || !s.presents[e.id]);
+  $('#listeSeance').innerHTML = liste.map(e => {
+    const p = s.presents[e.id], hors = !e.groupes.some(g => s.groupes.includes(g));
+    const v = !p ? 'A' : p.retard ? 'R' : 'P';
+    const info = p ? (p.manuel ? 'validé à la main ' : 'carte ') + p.heure : (e.uid ? 'pas encore badgé' : 'pas encore de carte associée');
+    return `<li data-id="${e.id}"><span class="nomEtu"><b>${echapper(nomComplet(e))}</b><span class="petit">${hors ? '⚠ autre groupe · ' : ''}${echapper(info)}</span></span>
+      <span class="choix">${['P', 'R', 'A'].map(x => `<button data-v="${x}" class="${v === x ? 'on' : ''}" aria-label="${{ P: 'Présent', R: 'Retard', A: 'Absent' }[x]}">${x}</button>`).join('')}</span></li>`;
+  }).join('') || `<li class="petit">${seulementAbsents ? 'Tout le monde est là 🎉' : 'Aucun étudiant dans ce groupe : importez la liste dans l\'onglet Groupes.'}</li>`;
+  $('#listeSeance').querySelectorAll('.choix button').forEach(b => b.onclick = () => {
+    const k = b.closest('li').dataset.id, v = b.dataset.v, p = s.presents[k];
+    if (v === 'A') delete s.presents[k];
+    else if (p) { p.retard = v === 'R'; p.manuel = true; }
+    else s.presents[k] = { heure: heure(), manuel: true, retard: v === 'R' };
+    enregistrer(); afficherListeAppel();
+  });
+}
+$('#filtreAbsents').onchange = afficherListeAppel;
 
 // Récapitulatif à reporter dans la fenêtre « Saisie des présences » d'ADE
 function afficherRecapAde(s) {
@@ -637,30 +682,51 @@ $('#toutEffacer').onclick = () => {
 // =================== NFC ===================
 let controleur = null, dernierePasse = { uid: null, t: 0 }, uidEnAttente = null;
 if (!('NDEFReader' in window)) $('#nfcAbsent').style.display = 'block';
+let verrouEcran = null;
 function etatScan(actif, texte) {
   $('#etatScan').innerHTML = `<span class="pastille ${actif ? 'on' : ''}"></span>` + echapper(texte);
-  $('#demarrer').style.display = actif ? 'none' : 'block';
   $('#arreter').style.display = actif ? 'block' : 'none';
+  $('#reprendre').style.display = actif ? 'none' : 'block';
 }
-$('#demarrer').onclick = async () => {
-  if (!seance()) return alert("Choisissez d'abord une séance.");
+async function lancerScan() {
+  if (controleur) return;
+  if (!('NDEFReader' in window)) { etatScan(false, 'NFC indisponible sur cet appareil : validez les présences à la main (boutons P / R / A).'); $('#reprendre').style.display = 'none'; return; }
   try {
     controleur = new AbortController();
     const lecteur = new NDEFReader();
     await lecteur.scan({ signal: controleur.signal });
-    etatScan(true, "Scan en cours : les étudiants peuvent badger. Gardez l'écran allumé.");
+    etatScan(true, 'Scan en cours : les étudiants peuvent badger.');
     lecteur.onreading = ev => carteLue(ev.serialNumber);
     lecteur.onreadingerror = () => afficherDernier('inconnu', 'Lecture échouée', 'Laissez la carte une seconde contre le téléphone.');
   } catch (err) {
     controleur = null;
     etatScan(false, 'Impossible de démarrer le NFC : ' + err.message + '. Vérifiez que le NFC est activé et autorisé pour cette page.');
   }
-};
+}
 function arreterScan() {
   if (controleur) { try { controleur.abort(); } catch (e) {} controleur = null; }
-  etatScan(false, 'Scan arrêté.');
+  etatScan(false, 'Scan arrêté. Vous pouvez toujours valider à la main.');
 }
+async function ouvrirAppel() {
+  if (!seance()) return alert("Choisissez d'abord une séance.");
+  $('#modeAppel').classList.add('ouvert');
+  afficherDernier('', '', ''); $('#dernier').innerHTML = '<div class="petit">Le nom de l\'étudiant s\'affichera ici à chaque carte badgée</div>';
+  afficherListeAppel();
+  try { history.pushState({ appel: 1 }, ''); } catch (e) {}
+  try { verrouEcran = await navigator.wakeLock.request('screen'); } catch (e) {} // garde l'écran allumé
+  lancerScan();
+}
+function fermerAppel() {
+  arreterScan();
+  $('#modeAppel').classList.remove('ouvert');
+  try { verrouEcran && verrouEcran.release(); } catch (e) {} verrouEcran = null;
+  afficherTout();
+}
+$('#demarrer').onclick = ouvrirAppel;
 $('#arreter').onclick = arreterScan;
+$('#reprendre').onclick = lancerScan;
+$('#accueil').onclick = () => { if (history.state && history.state.appel) history.back(); else fermerAppel(); };
+window.addEventListener('popstate', () => { if ($('#modeAppel').classList.contains('ouvert')) fermerAppel(); }); // bouton retour d'Android
 
 function afficherDernier(classe, titre, sous) {
   const d = $('#dernier'); d.className = classe;
