@@ -124,7 +124,7 @@
     if (!seances.length) { $l.innerHTML = '<div class="ok">✅ Toutes les séances sont saisies dans ADE.</div>'; return; }
     $l.innerHTML = seances.map(s => {
       const e = etats[s.id] || {}, ouv = f && f.date === s.d && f.debut === s.h;
-      const resume = (s.a?.length || 0) + ' absent(s), ' + (s.r?.length || 0) + ' retard(s)';
+      const resume = (s.a?.length || 0) + ' absent(s)';
       let x = '';
       if (e.etat === 'prete') x = '<div class="x"><b>✓ Remplie. Vérifiez puis cliquez sur « Enregistrer » dans ADE.</b>La séance disparaîtra après l\'enregistrement.</div><button data-fait="' + esc(s.id) + '">Déjà enregistrée</button>';
       else if (e.etat === 'err') x = '<div class="x"><b>⚠ ' + esc(e.titre) + '</b>' + (e.details || []).map(esc).join('<br>') + '</div>' + (e.fenetreOk ? '<button data-fait="' + esc(s.id) + '">Corrigée à la main et enregistrée</button>' : '');

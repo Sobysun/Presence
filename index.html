@@ -2,252 +2,209 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Présence NFC</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#1f5fa8">
+<meta name="theme-color" content="#121214">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root { --bleu:#1f5fa8; --vert:#1e8a4c; --rouge:#c0392b; --orange:#d68910; --gris:#f2f4f7; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui, sans-serif; background:#fff; color:#222; }
-  header { background:var(--bleu); color:#fff; padding:12px 16px; font-size:1.15em; font-weight:600; }
-  nav { display:flex; background:var(--gris); border-bottom:1px solid #ddd; position:sticky; top:0; z-index:5; }
-  nav button { flex:1; padding:12px 4px; border:none; background:none; font-size:0.95em; color:#555; }
-  nav button.actif { color:var(--bleu); border-bottom:3px solid var(--bleu); font-weight:600; }
-  main { padding:14px; }
-  section { display:none; } section.actif { display:block; }
-  .btn { display:block; padding:14px 16px; border:none; border-radius:10px; background:var(--bleu); color:#fff; font-size:1.05em; margin:6px 0; width:100%; text-align:center; font-weight:600; }
-  .btn.secondaire { background:#e4e8ee; color:#222; font-weight:500; }
-  .btn.rouge { background:var(--rouge); } .btn.vert { background:var(--vert); } .btn.orange { background:var(--orange); }
-  .btn.mini { display:inline-block; width:auto; padding:6px 10px; font-size:0.85em; margin:2px; font-weight:500; }
-  .btn:disabled { opacity:0.45; }
-  input, textarea, select { width:100%; padding:10px; font-size:1em; border:1px solid #ccc; border-radius:6px; margin:4px 0 10px; }
-  textarea { min-height:120px; font-family:monospace; font-size:0.9em; }
-  .info { background:var(--gris); padding:10px; border-radius:8px; font-size:0.95em; margin:8px 0; }
-  .alerte { background:#fdecea; color:var(--rouge); padding:10px; border-radius:8px; margin:8px 0; }
-  .etape { font-size:0.8em; font-weight:700; color:var(--bleu); text-transform:none; margin:18px 0 6px; }
-  .carteSeance { border:2px solid var(--bleu); border-radius:12px; padding:12px; margin:8px 0; }
-  .carteSeance .ref { font-size:1.4em; font-weight:800; }
-  .carteSeance .grp { font-size:1.1em; font-weight:600; color:var(--bleu); }
-  #dernier { text-align:center; padding:18px 10px; margin:10px 0; border-radius:10px; background:var(--gris); min-height:80px; }
-  #dernier .nom { font-size:1.5em; font-weight:700; }
-  #dernier.ok { background:#e3f5ea; } #dernier.inconnu { background:#fff4e0; } #dernier.deja { background:#e8eefc; } #dernier.hors { background:#fff4e0; }
-  .compteur { font-size:1.2em; font-weight:700; margin:10px 0; text-align:center; }
-  ul { list-style:none; padding:0; margin:0; }
-  li { padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-  li .tag { font-size:0.8em; padding:3px 8px; border-radius:10px; white-space:nowrap; }
-  .present { background:#e3f5ea; color:var(--vert); } .absent { background:#fdecea; color:var(--rouge); }
-  .carte-ok { background:#e8eefc; color:var(--bleu); } .carte-non { background:#eee; color:#777; }
-  .hors-tag { background:#fff4e0; color:var(--orange); }
-  #listeEdt li { border:1px solid #ddd; border-radius:10px; margin:6px 0; }
-  #listeEdt li.choisie { border:2px solid var(--bleu); background:#e8eefc; }
-  #listeEdt li.encours { border-left:6px solid var(--vert); }
-  h3 { margin:18px 0 6px; }
-  .modale { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); padding:20px; z-index:10; }
-  .modale .boite { background:#fff; border-radius:10px; padding:16px; max-height:90vh; overflow:auto; }
-  .petit { font-size:0.8em; color:#777; }
-  label.case { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; }
-  label.case input { width:22px; height:22px; margin:0; }
-  .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#bbb; margin-right:6px; }
-  .pastille.on { background:var(--vert); animation:clign 1s infinite; }
-  .retard { background:#fff4e0; color:var(--orange); }
-  #modeAppel { display:none; position:fixed; inset:0; background:#fff; z-index:8; flex-direction:column; }
-  #modeAppel.ouvert { display:flex; }
-  .hautAppel { padding:10px 12px 6px; border-bottom:2px solid #ddd; background:#fff; }
-  #titreAppel { font-weight:800; font-size:1.15em; } #titreAppel .petit { font-weight:400; }
-  .hautAppel #dernier { min-height:60px; padding:10px; margin:6px 0; }
-  .hautAppel #dernier .nom { font-size:1.3em; }
-  .hautAppel .info { margin:4px 0; padding:6px 10px; }
-  .ligneCompteur { display:flex; justify-content:space-between; align-items:center; }
-  .ligneCompteur .compteur { margin:4px 0; text-align:left; }
-  .ligneCompteur input { width:auto; margin:0 4px 0 0; }
-  #listeSeance { flex:1; overflow-y:auto; padding:0 8px; }
-  #listeSeance li { padding:8px 4px; }
-  #listeSeance .nomEtu { flex:1; min-width:0; }
-  #listeSeance .nomEtu b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .choix { display:flex; gap:4px; flex:none; }
-  .choix button { border:1px solid #ccc; background:#fff; border-radius:8px; padding:10px 0; width:44px; font-weight:700; font-size:0.95em; color:#999; }
-  .choix button.on[data-v=P] { background:var(--vert); color:#fff; border-color:var(--vert); }
-  .choix button.on[data-v=R] { background:var(--orange); color:#fff; border-color:var(--orange); }
-  .choix button.on[data-v=A] { background:var(--rouge); color:#fff; border-color:var(--rouge); }
-  .basAppel { display:flex; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); border-top:2px solid #ddd; background:#fff; }
-  .basAppel .btn { margin:0; padding:14px 6px; font-size:0.95em; }
-  .ade { border:2px dashed var(--bleu); border-radius:12px; padding:12px; margin:8px 0; }
-  .ade ol { margin:6px 0 6px 20px; padding:0; } .ade li { display:list-item; border:none; padding:3px 0; }
-  .ade .vide { color:var(--vert); font-weight:600; }
-  @keyframes clign { 50% { opacity:0.3; } }
+  :root { --bg:#1f1f1e; --surf:#262625; --surf2:#30302e; --bord:rgba(255,255,255,.09); --bord2:rgba(255,255,255,.18);
+          --txt:rgba(255,255,255,.93); --mut:rgba(255,255,255,.57); --faible:rgba(255,255,255,.4);
+          --acc:#85b7eb; --acc-bg:rgba(55,138,221,.18); --ok:#97c459; --ok-bg:rgba(99,153,34,.2); --ok-bord:rgba(151,196,89,.45);
+          --err:#f09595; --err-bg:rgba(226,75,74,.18); --err-bord:rgba(240,149,149,.45); --warn:#ef9f27; --warn-bg:rgba(186,117,23,.2);
+          --prim:#efefef; --sur-prim:#191919; color-scheme:dark; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  b, .titre, h3 { font-weight:500; }
+  .ic { width:18px; height:18px; flex:none; vertical-align:-3px; }
+  .ecran { display:none; } .ecran.actif { display:block; }
+  .barre { position:sticky; top:0; z-index:4; display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 16px 12px; background:var(--bg); border-bottom:.5px solid var(--bord); font-weight:500; font-size:16px; }
+  .barre .droite { margin-left:auto; font-size:13px; font-weight:400; color:var(--mut); white-space:nowrap; }
+  .point { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--faible); margin-right:6px; vertical-align:1px; }
+  .point.ok { background:var(--ok); } .point.err { background:var(--err); } .point.scan { background:var(--ok); animation:clign 1s infinite; }
+  .droite:has(.point.ok), .droite:has(.point.scan) { color:var(--ok); }
+  @keyframes clign { 50% { opacity:.25; } }
+  .ligne { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:.5px solid var(--bord); }
+  .ligne .corps { flex:1; min-width:0; }
+  .mut { color:var(--mut); font-size:13px; }
+  .ligne.choisie { background:var(--acc-bg); }
+  .puce { font-size:12px; padding:3px 10px; border-radius:8px; white-space:nowrap; background:rgba(255,255,255,.06); color:var(--mut); }
+  .puce.acc { background:var(--acc-bg); color:var(--acc); } .puce.ok { background:var(--ok-bg); color:var(--ok); }
+  .puce.warn { background:var(--warn-bg); color:var(--warn); } .puce.err { background:var(--err-bg); color:var(--err); }
+  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:46px; padding:8px 14px; border:.5px solid var(--bord2); border-radius:10px; background:transparent; font-weight:500; cursor:pointer; text-align:center; text-decoration:none; line-height:1.3; }
+  .btn:active { transform:scale(.98); }
+  .btn.prim { background:var(--prim); border-color:var(--prim); color:var(--sur-prim); }
+  .btn.petit { display:inline-flex; width:auto; min-height:34px; padding:4px 12px; font-size:13px; border-radius:8px; }
+  .btn.danger { color:var(--err); border-color:var(--err-bord); }
+  .zone { padding:14px 16px; }
+  .alerte { margin:0 16px 12px; padding:10px 12px; border-radius:10px; background:var(--warn-bg); color:var(--warn); font-size:13px; }
+  .alerte button { margin-top:8px; color:var(--warn); border-color:var(--warn); }
+  details { border-bottom:.5px solid var(--bord); }
+  summary { list-style:none; padding:14px 16px; cursor:pointer; color:var(--mut); display:flex; align-items:center; gap:10px; }
+  summary::-webkit-details-marker { display:none; }
+  summary::after { content:'›'; margin-left:auto; font-size:20px; transition:transform .15s; }
+  details[open] summary::after { transform:rotate(90deg); }
+  details > .contenu { padding:0 16px 14px; }
+  details.danger summary { color:var(--err); }
+  input, select { width:100%; height:42px; padding:0 12px; margin:4px 0 10px; border:.5px solid var(--bord2); border-radius:10px; background:var(--surf); }
+  input[type=checkbox] { width:18px; height:18px; margin:0; accent-color:var(--acc); }
+  .vide { padding:28px 16px; text-align:center; color:var(--mut); }
+  nav.onglets { position:fixed; left:0; right:0; bottom:0; z-index:5; display:flex; background:var(--bg); border-top:.5px solid var(--bord); padding-bottom:env(safe-area-inset-bottom); }
+  nav.onglets button { flex:1; height:60px; border:0; background:none; color:var(--faible); font-size:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+  nav.onglets button .ic { width:22px; height:22px; }
+  nav.onglets button.actif { color:var(--acc); }
+  /* Écran d'appel */
+  #appel { display:none; position:fixed; inset:0; z-index:8; background:var(--bg); flex-direction:column; }
+  #appel.ouvert { display:flex; }
+  #appel .barre { position:static; }
+  #retour { border:0; background:none; padding:0 4px 0 0; cursor:pointer; display:flex; }
+  #retour .ic { width:22px; height:22px; }
+  #dernier { margin:12px 16px 6px; padding:12px; border-radius:10px; text-align:center; background:var(--surf); min-height:64px; }
+  #dernier .nom { font-size:18px; font-weight:500; }
+  #dernier.ok { background:var(--ok-bg); color:var(--ok); }
+  #dernier.inconnu, #dernier.hors { background:var(--warn-bg); color:var(--warn); } #dernier.deja { background:var(--acc-bg); color:var(--acc); }
+  .compteurs { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 16px 10px; }
+  .compteurs b { font-size:15px; } .compteurs label { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:13px; }
+  #tousPresents { margin:0 16px 8px; width:auto; }
+  #listeAppel { flex:1; overflow-y:auto; }
+  .pa { display:flex; gap:6px; flex:none; }
+  .pa button { width:44px; height:36px; border-radius:8px; border:.5px solid var(--bord2); background:transparent; color:var(--faible); font-weight:500; cursor:pointer; }
+  .pa button.on[data-v=P] { background:var(--ok-bg); border-color:var(--ok-bord); color:var(--ok); }
+  .pa button.on[data-v=A] { background:var(--err-bg); border-color:var(--err-bord); color:var(--err); }
+  .pied { display:flex; gap:10px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:.5px solid var(--bord); background:var(--bg); }
+  .pied .btn { flex:1; }
+  /* Fenêtres */
+  .modale { display:none; position:fixed; inset:0; z-index:10; background:rgba(0,0,0,.6); padding:24px 16px; }
+  .modale .boite { background:var(--surf2); border:.5px solid var(--bord2); border-radius:14px; max-height:100%; overflow:auto; padding:16px; }
+  .modale h3 { margin:0 0 6px; font-size:17px; }
+  .modale .ligne { padding:12px 4px; }
+  label.case { display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:.5px solid var(--bord); }
+  textarea { width:100%; min-height:90px; border:.5px solid var(--bord2); border-radius:10px; background:var(--bg); padding:10px; font-family:monospace; font-size:12px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; padding:0 16px 12px; }
 </style>
 </head>
 <body>
-<header>📋 Présence NFC</header>
-<nav>
-  <button data-onglet="appel" class="actif">Appel</button>
-  <button data-onglet="classe">Groupes</button>
-  <button data-onglet="seances">Historique</button>
-  <button data-onglet="reglages">Réglages</button>
+
+<!-- =============== AUJOURD'HUI =============== -->
+<section class="ecran actif" id="aujourdhui">
+  <div class="barre"><i data-ic="id-badge-2"></i><span id="titreJour">Aujourd'hui</span><span class="droite" id="etatSyncMini"></span></div>
+  <div id="listeJour"></div>
+  <div class="zone"><button class="btn prim" id="faireAppel">Faire l'appel</button></div>
+  <div id="alertesSeance"></div>
+  <details id="autreJour"><summary><i data-ic="calendar"></i>Autre jour ou séance manuelle</summary><div class="contenu">
+    <input type="date" id="jourEdt">
+    <button class="btn" id="nouvelleSeance">Créer une séance hors planning</button>
+  </div></details>
+</section>
+
+<!-- =============== HISTORIQUE =============== -->
+<section class="ecran" id="historique">
+  <div class="barre">Historique</div>
+  <div class="zone"><a class="btn" id="voirEnLigne" target="_blank" rel="noopener"></a></div>
+  <div id="listeHistorique"></div>
+  <details><summary><i data-ic="dots"></i>Plus d'options</summary><div class="contenu">
+    <button class="btn" id="excelTelecharger">Télécharger l'Excel</button><br>
+    <button class="btn" id="codeAde">Code ADE manuel (sans synchro)</button>
+  </div></details>
+</section>
+
+<!-- =============== RÉGLAGES =============== -->
+<section class="ecran" id="reglages">
+  <div class="barre">Réglages</div>
+  <div class="ligne"><div class="corps"><div>Emploi du temps</div><div class="mut" id="infoEdt">non importé</div></div><button class="btn petit" id="majEdt"><i data-ic="refresh"></i>Mettre à jour</button></div>
+  <div class="ligne"><div class="corps"><div>Synchronisation PC</div><div class="mut" id="etatSync">non configurée</div></div><button class="btn petit" id="syncMaintenant"><i data-ic="refresh"></i>Synchroniser</button></div>
+  <details><summary><i data-ic="users"></i>Groupes et étudiants</summary><div class="contenu">
+    <div class="mut" id="infoGroupes"></div><br>
+    <label class="btn">Importer un CSV de promo<input type="file" id="importCsv" accept=".csv,text/csv,text/plain" hidden></label>
+    <div id="listeGroupes" style="margin-top:10px"></div>
+  </div></details>
+  <details><summary><i data-ic="calendar-event"></i>Source de l'emploi du temps</summary><div class="contenu">
+    <div class="mut">UPplanning → votre nom → Export Agenda → iCalendar → Générer URL.</div>
+    <input id="urlIcs" placeholder="Adresse iCal d'UPplanning">
+    <label class="btn">Importer un fichier .ics<input type="file" id="importIcs" accept=".ics,text/calendar" hidden></label>
+  </div></details>
+  <details><summary><i data-ic="brand-github"></i>Connexion GitHub</summary><div class="contenu">
+    <div class="mut">Dépôt privé qui relie ce téléphone au favori « Saisie ADE » du PC.</div>
+    <input id="syncDepot" placeholder="Sobysun/presence-data">
+    <input id="syncJeton" type="password" placeholder="Jeton github_pat_…" autocomplete="off">
+    <button class="btn" id="syncTester">Enregistrer et tester</button>
+  </div></details>
+  <details><summary><i data-ic="database"></i>Sauvegarde</summary><div class="contenu">
+    <button class="btn" id="sauvegarder">Télécharger une sauvegarde</button><br>
+    <label class="btn">Restaurer une sauvegarde<input type="file" id="restaurer" accept=".json" hidden></label>
+  </div></details>
+  <details><summary><i data-ic="nfc"></i>Test de lecture NFC</summary><div class="contenu">
+    <div class="mut" id="dernierUid">Aucune carte lue. Lancez un appel puis badgez une carte.</div>
+  </div></details>
+  <details class="danger"><summary><i data-ic="trash"></i>Zone de danger</summary><div class="contenu">
+    <button class="btn danger" id="toutEffacer">Effacer toutes les données</button>
+  </div></details>
+</section>
+
+<nav class="onglets">
+  <button data-ecran="aujourdhui" class="actif"><i data-ic="calendar-event"></i>Aujourd'hui</button>
+  <button data-ecran="historique"><i data-ic="history"></i>Historique</button>
+  <button data-ecran="reglages"><i data-ic="settings"></i>Réglages</button>
 </nav>
-<main>
 
-<!-- ============ APPEL ============ -->
-<section id="appel" class="actif">
-  <div id="nfcAbsent" class="alerte" style="display:none">
-    Ce navigateur ne permet pas la lecture NFC. Il faut un téléphone <b>Android</b> avec le NFC activé, le navigateur <b>Chrome</b>, et une page en <b>https</b>.
-  </div>
-
-  <div class="etape">① CHOISIR LA SÉANCE</div>
-  <div>Cours du <input type="date" id="jourEdt" style="width:auto;display:inline-block;margin:0;padding:4px 6px"></div>
-  <ul id="listeEdt"></ul>
-  <p class="petit" id="edtVide"></p>
-  <details style="margin:6px 0">
-    <summary class="petit">Séance hors emploi du temps</summary>
-    <button class="btn secondaire" id="nouvelleSeance">+ Créer une séance manuelle</button>
-  </details>
-
-  <div class="etape">② FAIRE L'APPEL</div>
-  <div id="seanceCourante"></div>
-  <button class="btn vert" id="demarrer">▶ Commencer l'appel</button>
-  <div class="compteur" id="compteurAccueil"></div>
-
-  <div class="etape">③ VALIDER</div>
-  <div id="etatValidation"></div>
-  <button class="btn" id="terminer">✅ Valider l'appel et mettre à jour l'Excel</button>
-  <p class="petit">Tant que l'appel n'est pas validé, la séance reste un brouillon : elle n'apparaît ni dans l'Historique, ni dans l'Excel, ni dans ADE.</p>
-
-  <div class="etape">④ REPORTER DANS ADE (UPplanning)</div>
-  <div class="info" id="etatSync">Synchronisation avec le PC non configurée (onglet Réglages).</div>
-  <button class="btn" id="syncMaintenant">🔄 Synchroniser maintenant avec le PC</button>
-  <p class="petit">Les absents et retards sont envoyés automatiquement au favori « Saisie ADE » de votre PC. Quand une séance y est enregistrée, elle est marquée ✅ ici.</p>
-  <details><summary class="petit">Sans synchronisation : code à copier</summary>
-    <button class="btn secondaire" id="codeAde">💻 Code pour ADE (séances pas encore saisies)</button>
-  </details>
-  <div id="recapAde"></div>
-</section>
-
-<!-- ============ GROUPES ============ -->
-<section id="classe">
-  <label class="btn">📄 Importer un fichier CSV de promo
-    <input type="file" id="importCsv" accept=".csv,text/csv,text/plain" style="display:none">
-  </label>
-  <p class="petit">Colonnes : Promo;TD;TPS;TPA;Nom;Prénom;N° étudiant. Crée automatiquement les groupes (BUT1 TDA, BUT1 TDA TPS1, BUT1 TDA TPA1…) et y range les étudiants. Réimporter un fichier met à jour sans créer de doublons, et les cartes associées sont conservées.</p>
-  <p class="petit">Les groupes sont aussi créés automatiquement à partir de votre emploi du temps.</p>
-  <ul id="listeGroupes"></ul>
-  <div id="detailGroupe" style="display:none">
-    <h3 id="titreGroupe"></h3>
-    <p class="petit">Une ligne par étudiant : <b>Nom;Prénom;N° étudiant</b> (copier-coller depuis Excel accepté). Un étudiant déjà connu (même numéro) est simplement ajouté à ce groupe : sa carte reste associée.</p>
-    <textarea id="zoneImport" placeholder="DUPONT;Marie;22401234&#10;MARTIN;Lucas;22405678"></textarea>
-    <button class="btn" id="importer">Ajouter à ce groupe</button>
-    <h3>Étudiants (<span id="nbEtudiants">0</span>)</h3>
-    <p class="petit">Touchez un nom pour dissocier sa carte ou le retirer du groupe.</p>
-    <ul id="listeClasse"></ul>
-  </div>
-</section>
-
-<!-- ============ HISTORIQUE ============ -->
-<section id="seances">
-  <button class="btn" id="excelPartager">📤 Mettre à jour l'Excel (envoyer vers mon drive)</button>
-  <button class="btn secondaire" id="excelTelecharger">⬇ Télécharger l'Excel sur le téléphone</button>
-  <p class="petit">Fichier unique <b>Presences.xlsx</b> : un onglet par cours (R1.03, R5.01…), une ligne par étudiant, une colonne par séance (P = présent, R = retard, A = absent), et les totaux.</p>
-  <h3>Séances</h3>
-  <ul id="listeSeances"></ul>
-</section>
-
-<!-- ============ REGLAGES ============ -->
-<section id="reglages">
-  <h3>Mon emploi du temps (UPplanning)</h3>
-  <p class="petit">UPplanning → votre nom → Export Agenda… → iCalendar → Générer URL. <span id="edtInfo"></span></p>
-  <input id="urlIcs" placeholder="Collez ici l'adresse iCal d'UPplanning">
-  <button class="btn" id="majIcs">🔄 Mettre à jour l'emploi du temps</button>
-  <label class="btn secondaire">📅 ou importer un fichier .ics
-    <input type="file" id="importIcs" accept=".ics,text/calendar" style="display:none">
-  </label>
-  <p class="petit">L'adresse reste uniquement sur ce téléphone.</p>
-  <h3>Synchronisation avec le PC (ADE)</h3>
-  <p class="petit">Dépôt GitHub <b>privé</b> qui sert de relais entre ce téléphone et le favori « Saisie ADE » du PC. Le jeton reste sur ce téléphone et n'est jamais inclus dans les sauvegardes.</p>
-  <label class="petit">Dépôt (propriétaire/nom)</label>
-  <input id="syncDepot" placeholder="Sobysun/presence-data">
-  <label class="petit">Jeton d'accès GitHub (fine-grained, Contents : read and write)</label>
-  <input id="syncJeton" type="password" placeholder="github_pat_…" autocomplete="off">
-  <button class="btn" id="syncTester">💾 Enregistrer et tester</button>
-  <h3>Retards</h3>
-  <p class="petit">Une carte badgée plus de <b>X minutes</b> après le début du cours est notée « Retard » (comme dans ADE).</p>
-  <input type="number" id="seuilRetard" min="0" max="120" step="1" style="width:120px"> minutes
-  <h3>Sauvegarde</h3>
-  <button class="btn secondaire" id="sauvegarder">⬇ Télécharger une sauvegarde</button>
-  <label class="btn secondaire">⬆ Restaurer une sauvegarde
-    <input type="file" id="restaurer" accept=".json" style="display:none">
-  </label>
-  <h3>Test de lecture</h3>
-  <div class="info" id="dernierUid">Aucune carte lue.</div>
-  <h3>Tout effacer</h3>
-  <button class="btn rouge" id="toutEffacer">Effacer toutes les données</button>
-</section>
-</main>
-
-<!-- ÉCRAN D'APPEL (plein écran) -->
-<div id="modeAppel">
-  <div class="hautAppel">
-    <div id="titreAppel"></div>
-    <div class="info" id="etatScan"><span class="pastille"></span>Scan arrêté.</div>
-    <div id="dernier"><div class="petit">Le nom de l'étudiant s'affichera ici à chaque carte badgée</div></div>
-    <div class="ligneCompteur"><span class="compteur" id="compteur"></span>
-      <label class="petit"><input type="checkbox" id="filtreAbsents"> Non badgés seulement</label></div>
-  </div>
-  <ul id="listeSeance"></ul>
-  <div class="basAppel">
-    <button class="btn rouge" id="arreter">⏹ Arrêter le scan</button>
-    <button class="btn vert" id="reprendre" style="display:none">▶ Reprendre le scan</button>
-    <button class="btn secondaire" id="accueil">🏠 Accueil</button>
-    <button class="btn" id="validerAppel">✅ Valider</button>
+<!-- =============== APPEL (plein écran) =============== -->
+<div id="appel">
+  <div class="barre"><button id="retour" aria-label="Retour"><i data-ic="arrow-left"></i></button><span id="titreAppel"></span><span class="droite" id="etatScan"></span></div>
+  <div id="dernier"><div class="mut">Approchez une carte du dos du téléphone</div></div>
+  <div class="compteurs"><b id="compteur"></b><label><input type="checkbox" id="filtreAbsents"> absents seulement</label></div>
+  <button class="btn petit" id="tousPresents"><i data-ic="checks"></i>Tous présents</button>
+  <div id="listeAppel"></div>
+  <div class="pied">
+    <button class="btn" id="pauseScan">⏸ Pause scan</button>
+    <button class="btn prim" id="validerAppel"><i data-ic="check"></i>Valider</button>
   </div>
 </div>
 
-<!-- MODALE : carte inconnue -->
+<!-- =============== FENÊTRES =============== -->
 <div class="modale" id="modaleCarte"><div class="boite">
-  <h3 style="margin-top:0">Nouvelle carte</h3>
-  <p>À quel étudiant appartient cette carte ? (à faire une seule fois par étudiant)</p>
-  <input id="filtreModale" placeholder="Rechercher un nom…">
-  <ul id="listeModale"></ul>
-  <button class="btn secondaire" id="annulerModale">Annuler</button>
+  <h3>Nouvelle carte</h3><div class="mut">À qui appartient-elle ? (une seule fois par étudiant)</div>
+  <input id="filtreModale" placeholder="Rechercher un nom">
+  <div id="listeModale"></div><br>
+  <button class="btn" id="annulerModale">Annuler</button>
 </div></div>
 
-<!-- MODALE : code ADE -->
-<div class="modale" id="modaleAde"><div class="boite">
-  <h3 style="margin-top:0">Code pour ADE</h3>
-  <p class="petit" id="infoCodeAde"></p>
-  <textarea id="texteCodeAde" readonly style="min-height:90px"></textarea>
-  <button class="btn" id="envoyerCodeAde">📤 M'envoyer le code (mail, Teams…)</button>
-  <button class="btn secondaire" id="copierCodeAde">📋 Copier</button>
-  <button class="btn vert" id="marquerAde">✅ Marquer ces séances comme saisies dans ADE</button>
-  <button class="btn secondaire" id="fermerAde">Fermer</button>
-</div></div>
-
-<!-- MODALE : choix de groupes (cas rares) -->
 <div class="modale" id="modaleGroupes"><div class="boite">
-  <h3 style="margin-top:0">Groupes de ce cours</h3>
-  <p class="petit" id="sousTitreGroupes"></p>
-  <div id="casesGroupes"></div>
-  <button class="btn" id="validerGroupes">Valider</button>
-  <button class="btn secondaire" id="annulerGroupes">Annuler</button>
+  <h3>Groupes du cours</h3><div class="mut" id="sousTitreGroupes"></div>
+  <div id="casesGroupes"></div><br>
+  <button class="btn prim" id="validerGroupes">Valider</button><br>
+  <button class="btn" id="annulerGroupes">Annuler</button>
+</div></div>
+
+<div class="modale" id="modaleAde"><div class="boite">
+  <h3>Code ADE manuel</h3><div class="mut" id="infoCodeAde"></div><br>
+  <textarea id="texteCodeAde" readonly></textarea><br><br>
+  <button class="btn prim" id="copierCodeAde">Copier</button><br>
+  <button class="btn" id="marquerAde">Marquer ces séances comme saisies</button><br>
+  <button class="btn" id="fermerAde">Fermer</button>
 </div></div>
 
 <script>
 {
+const ICONES = {"calendar-event": "<path d=\"M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\" /> <path d=\"M16 3l0 4\" /> <path d=\"M8 3l0 4\" /> <path d=\"M4 11l16 0\" /> <path d=\"M8 15h2v2h-2l0 -2\" />", "history": "<path d=\"M12 8l0 4l2 2\" /> <path d=\"M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5\" />", "settings": "<path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\" /> <path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\" />", "arrow-left": "<path d=\"M5 12l14 0\" /> <path d=\"M5 12l6 6\" /> <path d=\"M5 12l6 -6\" />", "player-pause": "<path d=\"M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12\" /> <path d=\"M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12\" />", "player-play": "<path d=\"M7 4v16l13 -8l-13 -8\" />", "check": "<path d=\"M5 12l5 5l10 -10\" />", "checks": "<path d=\"M7 12l5 5l10 -10\" /> <path d=\"M2 12l5 5m5 -5l5 -5\" />", "table": "<path d=\"M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14\" /> <path d=\"M3 10h18\" /> <path d=\"M10 3v18\" />", "refresh": "<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\" /> <path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\" />", "users": "<path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\" /> <path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" /> <path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\" />", "brand-github": "<path d=\"M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5\" />", "database": "<path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\" /> <path d=\"M4 6v6a8 3 0 0 0 16 0v-6\" /> <path d=\"M4 12v6a8 3 0 0 0 16 0v-6\" />", "nfc": "<path d=\"M11 20a3 3 0 0 1 -3 -3v-11l5 5\" /> <path d=\"M13 4a3 3 0 0 1 3 3v11l-5 -5\" /> <path d=\"M4 7a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-10a3 3 0 0 1 -3 -3l0 -10\" />", "trash": "<path d=\"M4 7l16 0\" /> <path d=\"M10 11l0 6\" /> <path d=\"M14 11l0 6\" /> <path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\" /> <path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\" />", "calendar": "<path d=\"M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12\" /> <path d=\"M16 3v4\" /> <path d=\"M8 3v4\" /> <path d=\"M4 11h16\" />", "dots": "<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" /> <path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" /> <path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" />", "download": "<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\" /> <path d=\"M7 11l5 5l5 -5\" /> <path d=\"M12 4l0 12\" />", "id-badge-2": "<path d=\"M7 12h3v4h-3l0 -4\" /> <path d=\"M10 6h-6a1 1 0 0 0 -1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1 -1v-12a1 1 0 0 0 -1 -1h-6\" /> <path d=\"M10 4a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -3\" /> <path d=\"M14 16h2\" /> <path d=\"M14 12h4\" />"};
+const ic = n => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n] || ''}</svg>`;
 // =================== Données ===================
 const CLE = 'presence-nfc-v1';
 let D = {};
-const vide = () => ({ etudiants: [], groupes: [], seances: [], seanceActive: null, edt: null, edtMaj: null, icsUrl: '', groupeVu: null, memo: {}, seuilRetard: 10 });
+const vide = () => ({ etudiants: [], groupes: [], seances: [], seanceActive: null, edt: null, edtMaj: null, icsUrl: '', memo: {} });
 const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const $ = s => document.querySelector(s);
 const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const echapper = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const echapper = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nomComplet = e => e.nom.toUpperCase() + ' ' + e.prenom;
 const tri = (a, b) => nomComplet(a).localeCompare(nomComplet(b), 'fr');
 const heure = () => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const hm = iso => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const jourISO = d => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
+const dateCourte = iso => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 const groupe = gid => D.groupes.find(g => g.id === gid);
 const nomsGroupes = ids => (ids || []).map(groupe).filter(Boolean).map(g => g.nom).join(' + ') || 'groupe inconnu';
 
@@ -258,28 +215,26 @@ function charger() {
 }
 function migrer() {
   D.memo = D.memo || {};
-  D.seances.forEach(s => { if (s.validee === undefined) s.validee = !!(s.saisiAde || Object.keys(s.presents || {}).length); });
-  if (typeof D.seuilRetard !== 'number') D.seuilRetard = 10;
-  D.etudiants.forEach(e => {
-    if (!e.groupes) e.groupes = e.groupeId ? [e.groupeId] : [];
-    delete e.groupeId;
+  delete D.seuilRetard;
+  D.seances.forEach(s => {
+    if (s.validee === undefined) s.validee = !!(s.saisiAde || Object.keys(s.presents || {}).length);
+    if (!s.groupes) s.groupes = D.groupes.map(g => g.id);
+    if (!s.ref) s.ref = reference(s.cours || (s.libelle || '').replace(/^.*?–\s*/, ''));
+    Object.values(s.presents || {}).forEach(p => delete p.retard); // plus de retards
   });
+  D.etudiants.forEach(e => { if (!e.groupes) e.groupes = e.groupeId ? [e.groupeId] : []; delete e.groupeId; });
   if (D.etudiants.some(e => !e.groupes.length)) {
     const g = assurerGroupe({ nom: 'Groupe 1' });
     D.etudiants.forEach(e => { if (!e.groupes.length) e.groupes = [g.id]; });
   }
-  D.seances.forEach(s => {
-    if (!s.groupes) s.groupes = D.groupes.map(g => g.id);
-    if (!s.ref) s.ref = reference(s.cours || s.libelle.replace(/^.*?–\s*/, ''));
-  });
 }
 function enregistrer() {
   try { localStorage.setItem(CLE, JSON.stringify(D)); } catch (e) { alert("Impossible d'enregistrer les données dans ce navigateur."); }
 }
 
 // =================== Lecture du format UPplanning ===================
-// Ex. « R1.03 Mathématiques TDA Bendilmi » + « TDA - BUT GMP S1 »  → réf R1.03, groupe BUT1 TDA
-//     « R3.02 - Dimensionnement… TPS3 SB TP » + « TDB TPS3 SNRV BUT GMP S3 » → R3.02, BUT2 TDB TPS3
+// « R1.03 Mathématiques TDA Bendilmi » + « TDA - BUT GMP S1 » → R1.03, BUT1 TDA
+// « R3.02 - Dimensionnement… TPS3 SB TP » + « TDB TPS3 SNRV BUT GMP S3 » → R3.02, BUT2 TDB TPS3
 function reference(titre) {
   const t = String(titre || '').trim();
   const m = t.match(/^\s*((?:SA[EÉ]\s?)?[A-Z]{0,2}\s?\d{1,2}\.\d{1,2}[A-Z]?)/i);
@@ -288,11 +243,9 @@ function reference(titre) {
 function analyserCours(e) {
   const texte = [e.titre, e.desc].join('\n');
   const sem = texte.match(/BUT\s*GMP\s*S\s?([1-6])/i) || texte.match(/(?:^|[^A-Z0-9])S([1-6])(?:[^0-9]|$)/i);
-  const annee = sem ? Math.ceil(+sem[1] / 2) : null;
-  const td = texte.match(/\bTD\s?([A-H])\b/);
-  const tp = texte.match(/\b(TP\s?[SA]?\d{1,2})\b/i);
-  const alt = /altern/i.test(texte);
-  return { annee, td: td ? 'TD' + td[1].toUpperCase() : null, tp: tp ? tp[1].replace(/\s/g, '').toUpperCase() : null, alt };
+  const td = texte.match(/\bTD\s?([A-H])\b/), tp = texte.match(/\b(TP\s?[SA]?\d{1,2})\b/i);
+  return { annee: sem ? Math.ceil(+sem[1] / 2) : null, td: td ? 'TD' + td[1].toUpperCase() : null,
+    tp: tp ? tp[1].replace(/\s/g, '').toUpperCase() : null, alt: /altern/i.test(texte) };
 }
 function assurerGroupe(p) {
   const nom = p.nom || ['BUT' + p.annee, p.td, p.tp, p.alt ? 'ALT' : ''].filter(Boolean).join(' ');
@@ -300,86 +253,370 @@ function assurerGroupe(p) {
   if (!g) { g = { id: id(), nom, annee: p.annee || null, td: p.td || null, tp: p.tp || null, alt: !!p.alt }; D.groupes.push(g); }
   return g;
 }
-// Groupes concernés par un cours de l'emploi du temps (créés automatiquement si besoin)
 function groupesDuCours(e) {
   const memo = D.memo[norm(e.titre) + '|' + norm(e.desc)];
   if (memo) return memo.filter(groupe);
   const a = analyserCours(e);
   if (!a.annee) return [];
-  if (a.tp && !a.td) { // TP sans lettre de TD : on retrouve le groupe de TP déjà connu
-    const g = D.groupes.find(x => x.annee === a.annee && x.tp === a.tp);
-    if (g) return [g.id];
-  }
-  if (a.td) return [assurerGroupe(a).id]; // TD ou TP : un groupe précis
-  // CM (pas de TD) : tous les groupes de TD de cette année
-  const tds = D.groupes.filter(g => g.annee === a.annee && g.td && !g.tp && g.alt === a.alt);
+  if (a.tp && !a.td) { const g = D.groupes.find(x => x.annee === a.annee && x.tp === a.tp); if (g) return [g.id]; }
+  if (a.td) return [assurerGroupe(a).id];
+  const tds = D.groupes.filter(g => g.annee === a.annee && g.td && !g.tp && g.alt === a.alt); // CM : tous les TD de l'année
   return tds.length ? tds.map(g => g.id) : [assurerGroupe({ nom: 'BUT' + a.annee + (a.alt ? ' ALT' : '') + ' promo', annee: a.annee }).id];
 }
 
-// =================== Onglets ===================
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('nav button').forEach(x => x.classList.remove('actif'));
-  document.querySelectorAll('main section').forEach(x => x.classList.remove('actif'));
-  b.classList.add('actif'); $('#' + b.dataset.onglet).classList.add('actif');
-  afficherTout();
-});
-const allerA = onglet => document.querySelector(`nav button[data-onglet=${onglet}]`).click();
+// =================== Navigation ===================
+document.querySelectorAll('nav.onglets button').forEach(b => b.onclick = () => allerA(b.dataset.ecran));
+function allerA(ecran) {
+  document.querySelectorAll('nav.onglets button').forEach(x => x.classList.toggle('actif', x.dataset.ecran === ecran));
+  document.querySelectorAll('.ecran').forEach(x => x.classList.toggle('actif', x.id === ecran));
+  window.scrollTo(0, 0); afficherTout();
+}
 
-// =================== Groupes ===================
+// =================== Séances ===================
+const seance = () => D.seances.find(s => s.id === D.seanceActive);
 const etudiantsGroupe = gid => D.etudiants.filter(e => e.groupes.includes(gid)).sort(tri);
-function afficherClasse() {
-  const gs = D.groupes.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-  $('#listeGroupes').innerHTML = gs.map(g => {
-    const n = etudiantsGroupe(g.id).length;
-    return `<li data-id="${g.id}" style="${g.id === D.groupeVu ? 'background:#e8eefc' : ''}"><b>${echapper(g.nom)}</b>
-      <span class="tag ${n ? 'carte-ok' : 'absent'}">${n ? n + ' étudiants' : 'liste à importer'}</span></li>`;
-  }).join('') || '<li class="petit">Aucun groupe pour l\'instant : importez votre emploi du temps (Réglages), les groupes apparaîtront ici.</li>';
-  $('#listeGroupes').querySelectorAll('li[data-id]').forEach(li => li.onclick = () => { D.groupeVu = li.dataset.id; enregistrer(); afficherClasse(); });
-  const g = groupe(D.groupeVu);
-  $('#detailGroupe').style.display = g ? 'block' : 'none';
-  if (!g) return;
-  $('#titreGroupe').textContent = 'Groupe ' + g.nom;
-  const liste = etudiantsGroupe(g.id);
-  $('#nbEtudiants').textContent = liste.length;
-  $('#listeClasse').innerHTML = liste.map(e =>
-    `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}<br><span class="petit">${echapper(e.num)}</span></span>
-     <span class="tag ${e.uid ? 'carte-ok' : 'carte-non'}">${e.uid ? 'Carte associée' : 'Pas encore de carte'}</span></li>`).join('');
-  $('#listeClasse').querySelectorAll('li').forEach(li => li.onclick = () => {
-    const e = D.etudiants.find(x => x.id === li.dataset.id);
-    const c = prompt(nomComplet(e) + '\n1 = dissocier sa carte\n2 = retirer de ce groupe', '');
-    if (c === '1') e.uid = null;
-    else if (c === '2') { e.groupes = e.groupes.filter(x => x !== g.id); if (!e.groupes.length) D.etudiants = D.etudiants.filter(x => x.id !== e.id); }
-    else return;
+const concernes = s => D.etudiants.filter(e => e.groupes.some(g => s.groupes.includes(g)));
+const listeAppel = s => D.etudiants.filter(e => e.groupes.some(g => s.groupes.includes(g)) || s.presents[e.id]).sort(tri);
+const nbPresents = s => concernes(s).filter(e => s.presents[e.id]).length;
+
+function seancePourCours(e) {
+  let s = D.seances.find(x => x.edtUid === e.uid);
+  if (!s) {
+    s = { id: id(), edtUid: e.uid, ref: reference(e.titre), titre: e.titre || '', lieu: e.lieu || '', date: e.debut, fin: e.fin, presents: {}, groupes: groupesDuCours(e) };
+    D.seances.push(s);
+  }
+  return s;
+}
+function nettoyerBrouillons() { // séances ouvertes mais jamais utilisées
+  D.seances = D.seances.filter(s => s.validee || Object.keys(s.presents).length || s.id === D.seanceActive);
+}
+function statut(s, e, t) {
+  if (s && s.validee) return s.saisiAde ? ['✓ ADE', 'ok'] : ['ADE en attente', 'warn'];
+  if (s && Object.keys(s.presents).length) return ['Brouillon', 'warn'];
+  if (e && new Date(e.debut).getTime() - 15 * 60000 > t) return ['À venir', ''];
+  return ['Appel', 'acc'];
+}
+
+// =================== Écran Aujourd'hui ===================
+function afficherAujourdhui() {
+  if (!$('#jourEdt').value) $('#jourEdt').value = jourISO(new Date());
+  const jour = $('#jourEdt').value, t = Date.now();
+  const d = new Date(jour + 'T12:00:00');
+  $('#titreJour').textContent = jour === jourISO(new Date()) ? d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase())
+    : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const evts = (D.edt || []).filter(e => jourISO(e.debut) === jour);
+  const manuelles = D.seances.filter(s => !s.edtUid && jourISO(s.date) === jour);
+  if (!D.edt && !manuelles.length) {
+    $('#listeJour').innerHTML = '<div class="vide">Importez votre emploi du temps pour voir vos séances.<br><br><button class="btn petit" id="allerEdt">Importer l\'emploi du temps</button></div>';
+    $('#allerEdt').onclick = () => { allerA('reglages'); $('#majEdt').click(); };
+  } else if (!evts.length && !manuelles.length) {
+    $('#listeJour').innerHTML = '<div class="vide">Aucun cours ce jour-là.</div>';
+  } else {
+    $('#listeJour').innerHTML = evts.map(e => {
+      const s = D.seances.find(x => x.edtUid === e.uid), [txt, cls] = statut(s, e, t);
+      const enCours = new Date(e.debut) - 15 * 60000 <= t && t <= new Date(e.fin || e.debut);
+      return `<div class="ligne ${s && s.id === D.seanceActive ? 'choisie' : ''}" data-uid="${echapper(e.uid)}"><div class="corps">
+        <div class="titre">${hm(e.debut)} · ${echapper(reference(e.titre))}</div>
+        <div class="mut">${echapper(nomsGroupes(s ? s.groupes : groupesDuCours(e)))}${e.lieu ? ' · ' + echapper(e.lieu) : ''}${enCours ? ' · en cours' : ''}</div></div>
+        <span class="puce ${cls}">${txt}</span></div>`;
+    }).join('') + manuelles.map(s => {
+      const [txt, cls] = statut(s, null, t);
+      return `<div class="ligne ${s.id === D.seanceActive ? 'choisie' : ''}" data-sid="${s.id}"><div class="corps"><div class="titre">${hm(s.date)} · ${echapper(s.ref)}</div>
+        <div class="mut">${echapper(nomsGroupes(s.groupes))} · hors planning</div></div><span class="puce ${cls}">${txt}</span></div>`;
+    }).join('');
+    $('#listeJour').querySelectorAll('.ligne').forEach(l => l.onclick = () => {
+      const avant = D.seanceActive;
+      D.seanceActive = l.dataset.sid || seancePourCours(evts.find(x => x.uid === l.dataset.uid)).id;
+      if (avant !== D.seanceActive) { const garde = D.seanceActive; D.seanceActive = garde; nettoyerBrouillons(); }
+      enregistrer(); afficherAujourdhui();
+    });
+  }
+  // Bouton principal et alertes de la séance choisie
+  const s = seance(), visible = s && jourISO(s.date) === jour;
+  $('#faireAppel').style.display = visible ? 'block' : 'none';
+  $('#alertesSeance').innerHTML = '';
+  if (!visible) return;
+  $('#faireAppel').textContent = (s.validee ? "Modifier l'appel · " : Object.keys(s.presents).length ? "Reprendre l'appel · " : "Faire l'appel · ") + s.ref + ' ' + nomsGroupes(s.groupes);
+  const vides = s.groupes.filter(g => !etudiantsGroupe(g).length);
+  if (!s.groupes.length) {
+    $('#alertesSeance').innerHTML = '<div class="alerte">Groupe non reconnu pour ce cours.<br><button class="btn petit" id="choisirGrp">Choisir le groupe</button></div>';
+  } else if (vides.length) {
+    $('#alertesSeance').innerHTML = `<div class="alerte">Liste d'étudiants manquante : ${echapper(nomsGroupes(vides))}.<br><button class="btn petit" id="allerGroupes">Importer la liste</button></div>`;
+    $('#allerGroupes').onclick = () => { allerA('reglages'); document.querySelector('#reglages details').open = true; };
+  }
+  if ($('#choisirGrp')) $('#choisirGrp').onclick = () => changerGroupes(s);
+}
+$('#jourEdt').onchange = () => afficherAujourdhui();
+function changerGroupes(s) {
+  choisirGroupes(s.titre || s.ref, s.groupes, ids => {
+    s.groupes = ids;
+    const e = (D.edt || []).find(x => x.uid === s.edtUid);
+    if (e) D.memo[norm(e.titre) + '|' + norm(e.desc)] = ids; // retenu pour les prochaines séances
     enregistrer(); afficherTout();
   });
 }
-$('#importer').onclick = () => {
-  const g = groupe(D.groupeVu); if (!g) return;
-  let n = 0;
-  for (const l of $('#zoneImport').value.split('\n').map(x => x.trim()).filter(Boolean)) {
-    const p = l.split(/[;\t,]/).map(x => x.trim());
-    if (!p[0] || /^nom$/i.test(p[0])) continue;
-    const num = p[2] || '';
-    let e = D.etudiants.find(x => num ? x.num === num : norm(nomComplet(x)) === norm(p[0] + p[1]));
-    if (!e) { e = { id: id(), nom: p[0], prenom: p[1] || '', num, uid: null, groupes: [] }; D.etudiants.push(e); }
-    if (!e.groupes.includes(g.id)) { e.groupes.push(g.id); n++; }
-  }
-  enregistrer(); $('#zoneImport').value = '';
-  alert(n + ' étudiant(s) ajouté(s) au groupe ' + g.nom + '.'); afficherTout();
+$('#nouvelleSeance').onclick = () => {
+  const ref = prompt('Référence du cours (nom de l\'onglet Excel) :', 'R1.03'); if (!ref) return;
+  choisirGroupes('Groupes présents', [], ids => {
+    const j = $('#jourEdt').value, maintenant = new Date(), d = new Date(j + 'T' + String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0') + ':00');
+    const s = { id: id(), ref: ref.trim().slice(0, 31), titre: ref.trim(), lieu: '', date: d.toISOString(), presents: {}, groupes: ids };
+    D.seances.push(s); D.seanceActive = s.id; enregistrer(); $('#autreJour').open = false; afficherTout();
+  });
 };
 
-// Import d'un fichier CSV de promo : Promo;TD;TPS;TPA;Nom;Prénom;N° étudiant
+// =================== Choix des groupes ===================
+let rappelGroupes = null;
+function choisirGroupes(texte, coches, rappel) {
+  if (!D.groupes.length) return alert("Aucun groupe connu : importez d'abord l'emploi du temps ou un CSV de promo.");
+  rappelGroupes = rappel; $('#sousTitreGroupes').textContent = texte;
+  $('#casesGroupes').innerHTML = D.groupes.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map(g =>
+    `<label class="case"><input type="checkbox" value="${g.id}" ${coches.includes(g.id) ? 'checked' : ''}> ${echapper(g.nom)}</label>`).join('');
+  $('#modaleGroupes').style.display = 'block';
+}
+$('#validerGroupes').onclick = () => { $('#modaleGroupes').style.display = 'none'; rappelGroupes && rappelGroupes([...document.querySelectorAll('#casesGroupes input:checked')].map(x => x.value)); };
+$('#annulerGroupes').onclick = () => { $('#modaleGroupes').style.display = 'none'; };
+
+// =================== Écran d'appel ===================
+let verrouEcran = null;
+async function ouvrirAppel() {
+  const s = seance(); if (!s) return;
+  if (!s.groupes.length) return changerGroupes(s);
+  $('#appel').classList.add('ouvert');
+  $('#dernier').className = ''; $('#dernier').innerHTML = '<div class="mut">Approchez une carte du dos du téléphone</div>';
+  $('#filtreAbsents').checked = false; afficherAppel(); $('#listeAppel').scrollTop = 0;
+  try { history.pushState({ appel: 1 }, ''); } catch (e) {}
+  try { verrouEcran = await navigator.wakeLock.request('screen'); } catch (e) {} // écran toujours allumé
+  lancerScan();
+}
+function fermerAppel() {
+  arreterScan();
+  $('#appel').classList.remove('ouvert');
+  try { verrouEcran && verrouEcran.release(); } catch (e) {} verrouEcran = null;
+  afficherTout(); planifierSync();
+}
+$('#faireAppel').onclick = ouvrirAppel;
+$('#retour').onclick = () => { if (history.state && history.state.appel) history.back(); else fermerAppel(); };
+window.addEventListener('popstate', () => { if ($('#appel').classList.contains('ouvert')) fermerAppel(); });
+$('#validerAppel').onclick = () => {
+  const s = seance(); if (!s) return;
+  const abs = concernes(s).length - nbPresents(s);
+  if (!confirm(`Valider l'appel de ${s.ref} (${nomsGroupes(s.groupes)}) ?\n${nbPresents(s)} présent(s), ${abs} absent(s).`)) return;
+  s.validee = true; enregistrer();
+  $('#retour').click();
+};
+$('#filtreAbsents').onchange = () => afficherAppel();
+$('#tousPresents').onclick = () => { // appel sans scan : tout le monde présent, puis on corrige les absents avec A
+  const s = seance(); if (!s) return;
+  const restants = concernes(s).filter(e => !s.presents[e.id]);
+  if (!restants.length) return;
+  if (!confirm('Marquer les ' + restants.length + ' étudiant(s) restant(s) présents ?\nVous pourrez ensuite passer les absents en A.')) return;
+  restants.forEach(e => s.presents[e.id] = { heure: heure(), manuel: true });
+  enregistrer(); $('#filtreAbsents').checked = false; afficherAppel();
+};
+
+function afficherAppel() {
+  const s = seance(); if (!s) return;
+  const conc = concernes(s), np = nbPresents(s);
+  $('#titreAppel').textContent = s.ref + ' · ' + nomsGroupes(s.groupes);
+  $('#compteur').textContent = `${np} / ${conc.length} présents`;
+  $('#tousPresents').style.display = np < conc.length ? 'inline-flex' : 'none';
+  const seulsAbsents = $('#filtreAbsents').checked;
+  const liste = listeAppel(s).filter(e => !seulsAbsents || !s.presents[e.id]);
+  $('#listeAppel').innerHTML = liste.map(e => {
+    const p = s.presents[e.id], hors = !e.groupes.some(g => s.groupes.includes(g));
+    const info = p ? (p.manuel ? 'à la main · ' : 'carte · ') + p.heure : (e.uid ? '' : 'pas encore de carte');
+    return `<div class="ligne" data-id="${e.id}"><div class="corps"><div>${echapper(nomComplet(e))}</div>${info || hors ? `<div class="mut">${hors ? 'autre groupe · ' : ''}${echapper(info)}</div>` : ''}</div>
+      <div class="pa"><button data-v="P" class="${p ? 'on' : ''}">P</button><button data-v="A" class="${p ? '' : 'on'}">A</button></div></div>`;
+  }).join('') || `<div class="vide">${seulsAbsents ? 'Tout le monde est là.' : 'Aucun étudiant dans ce groupe : importez la liste dans Réglages.'}</div>`;
+  $('#listeAppel').querySelectorAll('.pa button').forEach(b => b.onclick = () => {
+    const k = b.closest('.ligne').dataset.id;
+    if (b.dataset.v === 'A') delete s.presents[k];
+    else if (!s.presents[k]) s.presents[k] = { heure: heure(), manuel: true };
+    enregistrer(); afficherAppel();
+  });
+}
+
+// =================== NFC ===================
+let controleur = null, dernierePasse = { uid: null, t: 0 }, uidEnAttente = null;
+function etatScan(actif, texte) {
+  $('#etatScan').innerHTML = `<span class="point ${actif ? 'scan' : ''}"></span>${echapper(texte)}`;
+  $('#pauseScan').innerHTML = actif ? ic('player-pause') + 'Pause scan' : ic('player-play') + 'Reprendre';
+}
+async function lancerScan() {
+  if (controleur) return;
+  if (!('NDEFReader' in window)) { etatScan(false, 'NFC indisponible'); $('#pauseScan').style.display = 'none'; return; }
+  try {
+    controleur = new AbortController();
+    const lecteur = new NDEFReader();
+    await lecteur.scan({ signal: controleur.signal });
+    etatScan(true, 'scan actif');
+    lecteur.onreading = ev => carteLue(ev.serialNumber);
+    lecteur.onreadingerror = () => { afficherDernier('inconnu', 'Lecture échouée', 'Laissez la carte une seconde'); son('erreur'); };
+  } catch (err) {
+    controleur = null;
+    etatScan(false, 'NFC refusé');
+    afficherDernier('inconnu', 'NFC indisponible', 'Activez le NFC du téléphone et autorisez-le pour cette page.');
+  }
+}
+function arreterScan() { if (controleur) { try { controleur.abort(); } catch (e) {} controleur = null; } etatScan(false, 'en pause'); }
+$('#pauseScan').onclick = () => controleur ? arreterScan() : lancerScan();
+
+function afficherDernier(classe, titre, sous) {
+  const d = $('#dernier'); d.className = classe;
+  d.innerHTML = `<div class="nom">${echapper(titre)}</div><div style="font-size:13px">${echapper(sous || '')}</div>`;
+}
+// Effet sonore : « ok » = 2 notes montantes, « deja » = bip court, « erreur » = son grave
+let audio = null;
+function son(type) {
+  try { navigator.vibrate && navigator.vibrate(type === 'ok' ? 120 : type === 'deja' ? 60 : [90, 70, 90]); } catch (e) {}
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = type === 'ok' ? [[880, 0], [1320, 0.11]] : type === 'deja' ? [[1000, 0]] : [[220, 0], [180, 0.16]];
+    notes.forEach(([f, debut]) => {
+      const o = audio.createOscillator(), g = audio.createGain(), t0 = audio.currentTime + debut;
+      o.type = type === 'erreur' ? 'square' : 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+      o.connect(g); g.connect(audio.destination); o.start(t0); o.stop(t0 + 0.15);
+    });
+  } catch (e) {}
+}
+function carteLue(uid) {
+  if (!uid) { afficherDernier('inconnu', 'Carte illisible', 'Cette carte ne transmet pas de numéro'); son('erreur'); return; }
+  $('#dernierUid').textContent = 'Dernier identifiant lu : ' + uid + ' (' + heure() + ')';
+  const t = Date.now();
+  if (uid === dernierePasse.uid && t - dernierePasse.t < 3000) return; // carte laissée contre le téléphone
+  dernierePasse = { uid, t };
+  const s = seance(); if (!s) return;
+  const e = D.etudiants.find(x => x.uid === uid);
+  if (!e) { son('erreur'); afficherDernier('inconnu', 'Nouvelle carte', 'Choisissez l\'étudiant'); ouvrirModale(uid); return; }
+  marquer(e, s);
+}
+function marquer(e, s) {
+  if (s.presents[e.id]) { afficherDernier('deja', nomComplet(e), 'déjà présent · ' + s.presents[e.id].heure); son('deja'); return; }
+  const hors = !e.groupes.some(g => s.groupes.includes(g));
+  s.presents[e.id] = { heure: heure(), manuel: false };
+  enregistrer(); son(hors ? 'erreur' : 'ok');
+  afficherDernier(hors ? 'hors' : 'ok', nomComplet(e), hors ? 'autre groupe (' + nomsGroupes(e.groupes) + ') · noté présent' : 'présent · ' + heure());
+  afficherAppel();
+}
+function ouvrirModale(uid) { uidEnAttente = uid; $('#filtreModale').value = ''; remplirModale(); $('#modaleCarte').style.display = 'block'; }
+function remplirModale() {
+  const s = seance(), f = norm($('#filtreModale').value);
+  const rang = e => !s ? 2 : !e.groupes.some(g => s.groupes.includes(g)) ? 2 : s.presents[e.id] ? 1 : 0; // absents de la séance d'abord
+  const td = e => (e.groupes.map(groupe).find(g => g && !g.tp) || groupe(e.groupes[0]) || {}).nom || '';
+  const liste = D.etudiants.filter(e => !e.uid && norm(nomComplet(e)).includes(f)).sort((a, b) => rang(a) - rang(b) || tri(a, b));
+  $('#listeModale').innerHTML = liste.map(e => `<div class="ligne" data-id="${e.id}"><div class="corps">${echapper(nomComplet(e))}</div><span class="mut">${echapper(td(e))}${rang(e) === 1 ? ' · présent' : ''}</span></div>`).join('')
+    || '<div class="vide">Aucun étudiant sans carte.</div>';
+  $('#listeModale').querySelectorAll('.ligne').forEach(l => l.onclick = () => {
+    const e = D.etudiants.find(x => x.id === l.dataset.id);
+    e.uid = uidEnAttente; fermerModale();
+    const s = seance(); if (s) marquer(e, s); else enregistrer();
+  });
+}
+$('#filtreModale').oninput = remplirModale;
+function fermerModale() { $('#modaleCarte').style.display = 'none'; uidEnAttente = null; }
+$('#annulerModale').onclick = fermerModale;
+
+// =================== Historique ===================
+let histOuvert = null;
+function afficherHistorique() {
+  $('#voirEnLigne').href = 'https://github.com/' + depot() + '/tree/main/presences';
+  $('#voirEnLigne').innerHTML = lireJeton() ? ic('table') + 'Voir les présences en ligne ↗' : ic('settings') + 'Configurer la synchro (présences en ligne)';
+  if (!lireJeton()) { $('#voirEnLigne').removeAttribute('href'); $('#voirEnLigne').onclick = () => { allerA('reglages'); document.querySelectorAll('#reglages details')[2].open = true; }; }
+  else $('#voirEnLigne').onclick = null;
+  const ss = D.seances.filter(s => s.validee).sort((a, b) => b.date.localeCompare(a.date));
+  $('#listeHistorique').innerHTML = ss.map(s => {
+    const [txt, cls] = statut(s);
+    return `<div class="ligne" data-id="${s.id}"><div class="corps"><div class="titre">${echapper(s.ref)} · ${echapper(nomsGroupes(s.groupes))}</div>
+      <div class="mut">${dateCourte(s.date)} ${hm(s.date)} · ${nbPresents(s)}/${concernes(s).length}</div></div><span class="puce ${cls}">${txt}</span></div>`
+      + (histOuvert === s.id ? `<div class="actions"><button class="btn petit" data-a="ouvrir" data-id="${s.id}">Modifier l'appel</button><button class="btn petit danger" data-a="suppr" data-id="${s.id}">Supprimer</button></div>` : '');
+  }).join('') || '<div class="vide">Aucun appel validé pour l\'instant.</div>';
+  $('#listeHistorique').querySelectorAll('.ligne').forEach(l => l.onclick = () => { histOuvert = histOuvert === l.dataset.id ? null : l.dataset.id; afficherHistorique(); });
+  $('#listeHistorique').querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+    const sid = b.dataset.id;
+    if (b.dataset.a === 'ouvrir') { D.seanceActive = sid; $('#jourEdt').value = jourISO(seance().date); enregistrer(); allerA('aujourdhui'); ouvrirAppel(); }
+    else if (confirm('Supprimer cette séance et ses présences ?')) { D.seances = D.seances.filter(s => s.id !== sid); if (D.seanceActive === sid) D.seanceActive = null; enregistrer(); planifierSync(); afficherTout(); }
+  });
+}
+
+// =================== Excel et tableaux de présence ===================
+function tableauxPresences() {
+  const ss0 = D.seances.filter(s => s.validee && s.groupes.length), res = [];
+  const refs = [...new Set(ss0.map(s => s.ref))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  for (const ref of refs) {
+    const ss = ss0.filter(s => s.ref === ref).sort((a, b) => a.date.localeCompare(b.date));
+    const grp = e => nomsGroupes(e.groupes.filter(g => ss.some(s => s.groupes.includes(g))));
+    const etus = D.etudiants.filter(e => ss.some(s => e.groupes.some(g => s.groupes.includes(g)) || s.presents[e.id]))
+      .sort((a, b) => grp(a).localeCompare(grp(b), 'fr') || tri(a, b));
+    const entete = ['Nom', 'Prénom', 'N° étudiant', 'Groupe', ...ss.map(s => dateCourte(s.date) + ' ' + hm(s.date) + ' ' + nomsGroupes(s.groupes)), 'Présences', 'Absences', 'Taux'];
+    const lignes = etus.map(e => {
+      let p = 0, a = 0;
+      const cases = ss.map(s => { if (s.presents[e.id]) { p++; return 'P'; } if (e.groupes.some(g => s.groupes.includes(g))) { a++; return 'A'; } return ''; });
+      return [e.nom.toUpperCase(), e.prenom, e.num, grp(e), ...cases, p, a, p + a ? Math.round(100 * p / (p + a)) + ' %' : ''];
+    });
+    res.push({ ref, nbSeances: ss.length, lignes: [entete, ...lignes] });
+  }
+  return res;
+}
+const feuilleNom = (n, pris) => { let b = String(n).replace(/[\\\/\?\*\[\]:]/g, '-').slice(0, 31) || 'Cours', r = b, i = 2; while (pris.has(r.toLowerCase())) r = b.slice(0, 28) + ' ' + i++; pris.add(r.toLowerCase()); return r; };
+function construireExcel(silencieux) {
+  if (!window.XLSX) { if (!silencieux) alert("Le module Excel n'a pas pu se charger (pas de connexion ?)."); return null; }
+  const tabs = tableauxPresences();
+  if (!tabs.length) { if (!silencieux) alert('Aucun appel validé à exporter.'); return null; }
+  const wb = XLSX.utils.book_new(), pris = new Set();
+  for (const t of tabs) {
+    const ws = XLSX.utils.aoa_to_sheet(t.lignes);
+    ws['!cols'] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, ...Array(t.nbSeances).fill({ wch: 16 }), { wch: 10 }, { wch: 10 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws, feuilleNom(t.ref, pris));
+  }
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+}
+function telecharger(nom, contenu, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([contenu], { type })); a.download = nom;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+$('#excelTelecharger').onclick = () => { const d = construireExcel(); if (d) telecharger('Presences.xlsx', d, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); };
+
+// Code ADE manuel (si la synchro n'est pas configurée)
+let seancesCode = [];
+$('#codeAde').onclick = () => {
+  seancesCode = entreesAdeSeances();
+  if (!seancesCode.length) return alert('Toutes les séances validées sont déjà saisies dans ADE.');
+  $('#texteCodeAde').value = 'ADE:' + JSON.stringify({ v: 1, s: entreesAde() });
+  $('#infoCodeAde').textContent = seancesCode.length + ' séance(s) : ' + seancesCode.map(s => s.ref + ' ' + dateCourte(s.date) + ' ' + hm(s.date)).join(', ');
+  $('#modaleAde').style.display = 'block';
+};
+$('#copierCodeAde').onclick = async () => { try { await navigator.clipboard.writeText($('#texteCodeAde').value); $('#copierCodeAde').textContent = 'Copié'; } catch (e) { $('#texteCodeAde').select(); document.execCommand('copy'); } };
+$('#marquerAde').onclick = () => { seancesCode.forEach(s => s.saisiAde = true); enregistrer(); $('#modaleAde').style.display = 'none'; afficherTout(); planifierSync(); };
+$('#fermerAde').onclick = () => { $('#modaleAde').style.display = 'none'; $('#copierCodeAde').textContent = 'Copier'; };
+
+// =================== Groupes et étudiants ===================
+let groupeOuvert = null;
+function afficherGroupes() {
+  const nbCartes = D.etudiants.filter(e => e.uid).length;
+  $('#infoGroupes').textContent = D.groupes.length + ' groupes · ' + D.etudiants.length + ' étudiants · ' + nbCartes + ' cartes associées';
+  $('#listeGroupes').innerHTML = D.groupes.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map(g => {
+    const l = etudiantsGroupe(g.id);
+    return `<div class="ligne" data-g="${g.id}"><div class="corps">${echapper(g.nom)}</div><span class="puce ${l.length ? '' : 'warn'}">${l.length || 'liste à importer'}</span></div>`
+      + (groupeOuvert === g.id ? l.map(e => `<div class="ligne" data-e="${e.id}" style="padding-left:28px"><div class="corps">${echapper(nomComplet(e))}</div><span class="mut">${e.uid ? 'carte ✓' : '—'}</span></div>`).join('') : '');
+  }).join('');
+  $('#listeGroupes').querySelectorAll('[data-g]').forEach(l => l.onclick = () => { groupeOuvert = groupeOuvert === l.dataset.g ? null : l.dataset.g; afficherGroupes(); });
+  $('#listeGroupes').querySelectorAll('[data-e]').forEach(l => l.onclick = () => {
+    const e = D.etudiants.find(x => x.id === l.dataset.e);
+    if (e.uid && confirm('Dissocier la carte de ' + nomComplet(e) + ' ?')) { e.uid = null; enregistrer(); afficherGroupes(); }
+  });
+}
 $('#importCsv').onchange = ev => {
   const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
   f.text().then(t => {
     const lignes = t.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
     if (lignes.length < 2) return alert('Fichier vide.');
     const sep = [';', '\t', ','].find(s => lignes[0].includes(s)) || ';';
-    const ent = lignes[0].split(sep).map(norm);
-    const col = (...noms) => ent.findIndex(h => noms.some(n => h.startsWith(n)));
-    const c = { promo: col('promo', 'annee', 'but'), td: col('td'), tps: col('tps'), tpa: col('tpa'), nom: col('nom'), prenom: col('prenom'), num: col('n', 'num', 'numero') };
+    const ent = lignes[0].split(sep).map(norm), col = (...n) => ent.findIndex(h => n.some(x => h.startsWith(x)));
+    const c = { promo: col('promo', 'annee', 'but'), td: col('td'), tps: col('tps'), tpa: col('tpa'), nom: col('nom'), prenom: col('prenom') };
+    c.num = ent.findIndex((h, i) => i !== c.nom && /^(n|num|numero|netudiant|noetudiant|code)$/.test(h) || /^(netudiant|noetudiant|numero)/.test(h));
     if (c.nom < 0 || c.td < 0) return alert('Colonnes « Nom » et « TD » introuvables dans la première ligne.');
-    if (c.num === c.nom) c.num = ent.findIndex((h, i) => i !== c.nom && /^(n|num|numero|netudiant|noetudiant)/.test(h));
     let nouveaux = 0, total = 0; const avant = D.groupes.length;
     for (const l of lignes.slice(1)) {
       const v = l.split(sep).map(x => x.trim()), val = i => (i >= 0 ? v[i] || '' : '');
@@ -393,8 +630,7 @@ $('#importCsv').onchange = ev => {
       let e = D.etudiants.find(x => (num && x.num === num) || norm(nomComplet(x)) === norm(nom + prenom));
       if (!e) { e = { id: id(), nom, prenom, num, uid: null, groupes: [] }; D.etudiants.push(e); nouveaux++; }
       if (num && !e.num) e.num = num;
-      // on remplace les groupes de cette promo par ceux du fichier (changement de groupe pris en compte)
-      e.groupes = e.groupes.filter(g => groupe(g)?.annee !== annee).concat(ids);
+      e.groupes = e.groupes.filter(g => groupe(g)?.annee !== annee).concat(ids); // groupes de la promo remplacés
       total++;
     }
     enregistrer(); afficherTout();
@@ -402,169 +638,9 @@ $('#importCsv').onchange = ev => {
   });
 };
 
-// =================== Séances ===================
-const seance =() => D.seances.find(s => s.id === D.seanceActive);
-const concernes = s => D.etudiants.filter(e => e.groupes.some(g => s.groupes.includes(g)));
-const listeAppel = s => D.etudiants.filter(e => e.groupes.some(g => s.groupes.includes(g)) || s.presents[e.id]).sort(tri);
-
-function seancePourCours(e) {
-  let s = D.seances.find(x => x.edtUid === e.uid);
-  if (!s) {
-    s = { id: id(), edtUid: e.uid, ref: reference(e.titre), titre: e.titre || '', lieu: e.lieu || '', date: e.debut, fin: e.fin, presents: {}, groupes: groupesDuCours(e) };
-    D.seances.push(s);
-  }
-  return s;
-}
-let rappelGroupes = null;
-function choisirGroupes(texte, coches, rappel) {
-  if (!D.groupes.length) return alert("Aucun groupe connu. Importez d'abord votre emploi du temps.");
-  rappelGroupes = rappel; $('#sousTitreGroupes').textContent = texte;
-  $('#casesGroupes').innerHTML = D.groupes.slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map(g =>
-    `<label class="case"><input type="checkbox" value="${g.id}" ${coches.includes(g.id) ? 'checked' : ''}> ${echapper(g.nom)}</label>`).join('');
-  $('#modaleGroupes').style.display = 'block';
-}
-$('#validerGroupes').onclick = () => { $('#modaleGroupes').style.display = 'none'; rappelGroupes && rappelGroupes([...document.querySelectorAll('#casesGroupes input:checked')].map(x => x.value)); };
-$('#annulerGroupes').onclick = () => { $('#modaleGroupes').style.display = 'none'; };
-
-$('#nouvelleSeance').onclick = () => {
-  const ref = prompt('Référence du cours (nom de l\'onglet Excel) :', 'R1.03'); if (!ref) return;
-  choisirGroupes('Groupes présents', [], ids => {
-    const s = { id: id(), ref: ref.trim().slice(0, 31), titre: ref.trim(), lieu: '', date: new Date().toISOString(), presents: {}, groupes: ids };
-    D.seances.push(s); D.seanceActive = s.id; enregistrer(); afficherTout();
-  });
-};
-
-function afficherAppel() {
-  afficherEdt();
-  const s = seance();
-  if (!s) {
-    $('#seanceCourante').innerHTML = '<div class="info">Touchez une séance ci-dessus pour commencer.</div>';
-    $('#listeSeance').innerHTML = ''; $('#compteur').textContent = ''; $('#compteurAccueil').textContent = ''; $('#demarrer').disabled = true; return;
-  }
-  $('#demarrer').disabled = false;
-  const vides = s.groupes.filter(g => !etudiantsGroupe(g).length);
-  $('#seanceCourante').innerHTML = `<div class="carteSeance">
-      <div class="ref">${echapper(s.ref)}</div>
-      <div class="grp">${echapper(nomsGroupes(s.groupes))}</div>
-      <div class="petit">${new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${hm(s.date)}${s.fin ? '–' + hm(s.fin) : ''}${s.lieu ? ' · ' + echapper(s.lieu) : ''}</div>
-      <button class="btn mini secondaire" id="changerGroupes">Groupe incorrect ?</button></div>
-    ${!s.groupes.length ? '<div class="alerte">Groupe non reconnu : touchez « Groupe incorrect ? » pour le choisir (une seule fois pour ce cours).</div>' : ''}
-    ${vides.length ? `<div class="alerte">Liste d'étudiants manquante pour : <b>${echapper(nomsGroupes(vides))}</b>.<br><button class="btn mini" id="allerImport">Importer la liste maintenant</button></div>` : ''}`;
-  $('#changerGroupes').onclick = () => choisirGroupes(s.titre, s.groupes, ids => {
-    s.groupes = ids;
-    const e = (D.edt || []).find(x => x.uid === s.edtUid);
-    if (e) D.memo[norm(e.titre) + '|' + norm(e.desc)] = ids; // retenu pour les prochaines séances identiques
-    enregistrer(); afficherTout();
-  });
-  if ($('#allerImport')) $('#allerImport').onclick = () => { D.groupeVu = vides[0]; allerA('classe'); };
-  const nbP = Object.keys(s.presents).filter(k => concernes(s).some(e => e.id === k)).length;
-  $('#compteurAccueil').textContent = Object.keys(s.presents).length ? `Présents : ${nbP} / ${concernes(s).length}` : '';
-  $('#demarrer').textContent = Object.keys(s.presents).length ? "▶ Reprendre l'appel" : "▶ Commencer l'appel";
-  afficherListeAppel();
-  afficherRecapAde(s);
-}
-
-// Liste de l'écran d'appel : un bouton P / R / A par étudiant (contrôle manuel, ex. carte oubliée)
-function afficherListeAppel() {
-  const s = seance(); if (!s) return;
-  const conc = concernes(s), nbP = Object.keys(s.presents).filter(k => conc.some(e => e.id === k)).length;
-  const nbR = conc.filter(e => s.presents[e.id]?.retard).length;
-  $('#titreAppel').innerHTML = `${echapper(s.ref)} · ${echapper(nomsGroupes(s.groupes))}<br><span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} · ${hm(s.date)}${s.fin ? '–' + hm(s.fin) : ''}${s.lieu ? ' · ' + echapper(s.lieu) : ''}</span>`;
-  $('#compteur').textContent = `✅ ${nbP} / ${conc.length}` + (nbR ? ` (dont ${nbR} retard${nbR > 1 ? 's' : ''})` : '') + ` · ❌ ${conc.length - nbP}`;
-  const seulementAbsents = $('#filtreAbsents').checked;
-  const liste = listeAppel(s).filter(e => !seulementAbsents || !s.presents[e.id]);
-  $('#listeSeance').innerHTML = liste.map(e => {
-    const p = s.presents[e.id], hors = !e.groupes.some(g => s.groupes.includes(g));
-    const v = !p ? 'A' : p.retard ? 'R' : 'P';
-    const info = p ? (p.manuel ? 'validé à la main ' : 'carte ') + p.heure : (e.uid ? 'pas encore badgé' : 'pas encore de carte associée');
-    return `<li data-id="${e.id}"><span class="nomEtu"><b>${echapper(nomComplet(e))}</b><span class="petit">${hors ? '⚠ autre groupe · ' : ''}${echapper(info)}</span></span>
-      <span class="choix">${['P', 'R', 'A'].map(x => `<button data-v="${x}" class="${v === x ? 'on' : ''}" aria-label="${{ P: 'Présent', R: 'Retard', A: 'Absent' }[x]}">${x}</button>`).join('')}</span></li>`;
-  }).join('') || `<li class="petit">${seulementAbsents ? 'Tout le monde est là 🎉' : 'Aucun étudiant dans ce groupe : importez la liste dans l\'onglet Groupes.'}</li>`;
-  $('#listeSeance').querySelectorAll('.choix button').forEach(b => b.onclick = () => {
-    const k = b.closest('li').dataset.id, v = b.dataset.v, p = s.presents[k];
-    if (v === 'A') delete s.presents[k];
-    else if (p) { p.retard = v === 'R'; p.manuel = true; }
-    else s.presents[k] = { heure: heure(), manuel: true, retard: v === 'R' };
-    enregistrer(); afficherListeAppel();
-  });
-}
-$('#filtreAbsents').onchange = afficherListeAppel;
-
-// Récapitulatif à reporter dans la fenêtre « Saisie des présences » d'ADE
-function afficherRecapAde(s) {
-  $('#etatValidation').innerHTML = s.validee ? '<div class="info">✅ Appel validé : la séance est dans l\'Historique, l\'Excel et la synchro ADE.</div>'
-    : '<div class="alerte">📝 Brouillon : appel pas encore validé.</div>';
-  $('#terminer').textContent = s.validee ? "💾 Mettre à jour l'Excel" : "✅ Valider l'appel et mettre à jour l'Excel";
-  if (!s.validee) { $('#recapAde').innerHTML = '<p class="petit">Validez l\'appel (étape ③) pour l\'envoyer vers ADE.</p>'; return; }
-  const liste = concernes(s).sort(tri);
-  const absents = liste.filter(e => !s.presents[e.id]);
-  const retards = liste.filter(e => s.presents[e.id]?.retard);
-  const lignes = l => l.length ? '<ol>' + l.map(e => `<li>${echapper(nomComplet(e))}</li>`).join('') + '</ol>' : '<div class="vide">Aucun</div>';
-  $('#recapAde').innerHTML = `<div class="ade">
-    <b>${echapper(s.titre || s.ref)}</b><br><span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} · ${hm(s.date)}${s.fin ? '–' + hm(s.fin) : ''} · ${echapper(nomsGroupes(s.groupes))}</span>
-    <p class="petit">Dans UPplanning : <b>clic droit sur ce cours → Assiduités → Assiduité</b>. Tout le monde est « Présent » par défaut : changez uniquement les étudiants ci-dessous (même ordre alphabétique qu'ADE), puis <b>Enregistrer</b>.</p>
-    <b style="color:var(--rouge)">➜ Absent (${absents.length})</b>${lignes(absents)}
-    <b style="color:var(--orange)">➜ Retard (${retards.length})</b>${lignes(retards)}
-    <button class="btn mini secondaire" id="copierAde">📋 Copier la liste</button>
-    <label class="case" style="border:none;padding:6px 0"><input type="checkbox" id="saisiAde" ${s.saisiAde ? 'checked' : ''}> Saisi dans ADE</label></div>`;
-  $('#copierAde').onclick = async () => {
-    const t = `${s.titre || s.ref} – ${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} – ${nomsGroupes(s.groupes)}\nAbsents : ${absents.map(nomComplet).join(', ') || 'aucun'}\nRetards : ${retards.map(nomComplet).join(', ') || 'aucun'}`;
-    try { await navigator.clipboard.writeText(t); $('#copierAde').textContent = '✓ Copié'; } catch (e) { prompt('Copiez ce texte :', t); }
-  };
-  $('#saisiAde').onchange = ev => { s.saisiAde = ev.target.checked; enregistrer(); afficherSeances(); planifierSync(); };
-}
-
-// Code transmis au favori « Saisie ADE » : toutes les séances déjà commencées et pas encore saisies
-let seancesCode = [];
-$('#codeAde').onclick = () => {
-  const t = Date.now();
-  seancesCode = D.seances.filter(s => s.validee && !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date));
-  if (!seancesCode.length) return alert('Toutes les séances sont déjà marquées « saisies dans ADE ».');
-  const code = 'ADE:' + JSON.stringify({ v: 1, s: seancesCode.map(s => {
-    const l = concernes(s).sort(tri);
-    return { d: new Date(s.date).toLocaleDateString('fr-FR'), h: hm(s.date), t: s.ref,
-      a: l.filter(e => !s.presents[e.id]).map(e => [e.nom, e.prenom]),
-      r: l.filter(e => s.presents[e.id]?.retard).map(e => [e.nom, e.prenom]) };
-  }) });
-  $('#texteCodeAde').value = code;
-  $('#infoCodeAde').textContent = seancesCode.length + ' séance(s) : ' + seancesCode.map(s => s.ref + ' ' + new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm(s.date)).join(', ');
-  $('#modaleAde').style.display = 'block';
-};
-$('#copierCodeAde').onclick = async () => {
-  try { await navigator.clipboard.writeText($('#texteCodeAde').value); $('#copierCodeAde').textContent = '✓ Copié'; }
-  catch (e) { $('#texteCodeAde').select(); document.execCommand('copy'); }
-};
-$('#envoyerCodeAde').onclick = async () => {
-  try { await navigator.share({ title: 'Code ADE', text: $('#texteCodeAde').value }); }
-  catch (e) { if (e.name !== 'AbortError') alert("Partage impossible ici : utilisez « Copier »."); }
-};
-$('#marquerAde').onclick = () => {
-  seancesCode.forEach(s => s.saisiAde = true); enregistrer();
-  $('#modaleAde').style.display = 'none'; afficherTout(); planifierSync();
-};
-$('#fermerAde').onclick = () => { $('#modaleAde').style.display = 'none'; $('#copierCodeAde').textContent = '📋 Copier'; };
-
-function afficherSeances() {
-  $('#listeSeances').innerHTML = D.seances.filter(s => s.validee).sort((a, b) => b.date.localeCompare(a.date)).map(s =>
-    `<li data-id="${s.id}"><span><b>${echapper(s.ref)}</b> · ${echapper(nomsGroupes(s.groupes))}<br>
-     <span class="petit">${new Date(s.date).toLocaleDateString('fr-FR')} ${hm(s.date)} · ${Object.keys(s.presents).length} présent(s) · ${s.saisiAde ? '✅ saisi dans ADE' : '⏳ à saisir dans ADE'}</span></span>
-     <span style="white-space:nowrap"><button class="btn mini secondaire" data-action="ouvrir">Ouvrir</button>
-     <button class="btn mini rouge" data-action="suppr">✕</button></span></li>`).join('') || '<li class="petit">Aucune séance.</li>';
-  $('#listeSeances').querySelectorAll('button').forEach(b => b.onclick = () => {
-    const sid = b.closest('li').dataset.id;
-    if (b.dataset.action === 'ouvrir') { D.seanceActive = sid; const s = seance(); $('#jourEdt').value = jourISO(s.date); enregistrer(); allerA('appel'); }
-    else if (confirm('Supprimer cette séance et ses présences ?')) {
-      D.seances = D.seances.filter(s => s.id !== sid);
-      if (D.seanceActive === sid) D.seanceActive = null;
-      enregistrer(); afficherTout();
-    }
-  });
-}
-
 // =================== Emploi du temps (iCal) ===================
 function lireIcs(texte) {
-  const lignes = texte.replace(/\r?\n[ \t]/g, '').split(/\r?\n/);
-  const evts = []; let e = null;
+  const lignes = texte.replace(/\r?\n[ \t]/g, '').split(/\r?\n/), evts = []; let e = null;
   const val = v => v.replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1').trim();
   for (const l of lignes) {
     if (l === 'BEGIN:VEVENT') { e = {}; continue; }
@@ -572,335 +648,158 @@ function lireIcs(texte) {
     if (!e) continue;
     const i = l.indexOf(':'); if (i < 0) continue;
     const cle = l.slice(0, i).split(';')[0], v = l.slice(i + 1);
-    if (cle === 'DTSTART') e.debut = dateIcs(v);
-    else if (cle === 'DTEND') e.fin = dateIcs(v);
-    else if (cle === 'SUMMARY') e.titre = val(v);
-    else if (cle === 'LOCATION') e.lieu = val(v);
+    if (cle === 'DTSTART') e.debut = dateIcs(v); else if (cle === 'DTEND') e.fin = dateIcs(v);
+    else if (cle === 'SUMMARY') e.titre = val(v); else if (cle === 'LOCATION') e.lieu = val(v);
     else if (cle === 'DESCRIPTION') e.desc = val(v).replace(/\(Export[ée]* le\s*:.*?\)/i, '').trim();
     else if (cle === 'UID') e.uid = v.trim();
   }
   return evts.map(x => ({ ...x, titre: x.titre || '', desc: x.desc || '', uid: x.uid || x.debut + (x.titre || '') })).sort((a, b) => a.debut.localeCompare(b.debut));
 }
 function dateIcs(v) {
-  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{0,2}(Z)?)?/);
-  if (!m) return null;
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{0,2}(Z)?)?/); if (!m) return null;
   if (!m[4]) return new Date(+m[1], m[2] - 1, +m[3]).toISOString();
   if (m[6]) return new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5])).toISOString();
   return new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]).toISOString();
 }
 function enregistrerEdt(texte) {
   const evts = lireIcs(texte);
-  if (!evts.length) return alert("Aucun cours trouvé. Vérifiez qu'il s'agit bien d'un export iCal (.ics).");
-  D.edt = evts; D.edtMaj = new Date().toISOString();
+  if (!evts.length) return alert("Aucun cours trouvé : vérifiez qu'il s'agit d'un export iCal (.ics).");
   const avant = D.groupes.length;
-  evts.forEach(groupesDuCours); // crée les groupes automatiquement
+  D.edt = evts; D.edtMaj = new Date().toISOString();
+  evts.forEach(groupesDuCours);
   D.seances.forEach(s => { const e = evts.find(x => x.uid === s.edtUid); if (e) { s.date = e.debut; s.fin = e.fin; s.lieu = e.lieu || s.lieu; } });
   enregistrer();
-  const nouveaux = D.groupes.length - avant;
-  alert(evts.length + ' cours importés.' + (nouveaux ? '\n' + nouveaux + ' nouveau(x) groupe(s) créé(s) : importez leur liste d\'étudiants dans l\'onglet « Groupes ».' : ''));
+  const n = D.groupes.length - avant;
+  alert(evts.length + ' cours importés.' + (n ? '\n' + n + ' nouveau(x) groupe(s) : importez leur liste dans Réglages → Groupes et étudiants.' : ''));
   $('#jourEdt').value = jourISO(new Date()); afficherTout();
 }
 $('#importIcs').onchange = ev => { const f = ev.target.files[0]; if (f) f.text().then(enregistrerEdt); ev.target.value = ''; };
-$('#majIcs').onclick = async () => {
-  const url = $('#urlIcs').value.trim(); if (!url) return alert("Collez d'abord l'adresse iCal.");
-  D.icsUrl = url; enregistrer();
-  try { const r = await fetch(url); if (!r.ok) throw new Error('code ' + r.status); enregistrerEdt(await r.text()); }
-  catch (e) { alert("L'accès direct à cette adresse est bloqué (" + e.message + ").\nOuvrez l'adresse dans Chrome : un fichier .ics se télécharge. Puis utilisez « importer un fichier .ics »."); }
-};
-$('#jourEdt').onchange = () => afficherEdt();
-
-function afficherEdt() {
-  if (!$('#jourEdt').value) $('#jourEdt').value = jourISO(new Date());
-  const jour = $('#jourEdt').value, evts = (D.edt || []).filter(e => jourISO(e.debut) === jour);
-  $('#edtInfo').textContent = D.edtMaj ? '(' + D.edt.length + ' cours, mis à jour le ' + new Date(D.edtMaj).toLocaleDateString('fr-FR') + ')' : '';
-  $('#edtVide').textContent = !D.edt ? "Importez d'abord votre emploi du temps dans l'onglet Réglages." : (evts.length ? '' : 'Aucun cours ce jour-là.');
-  const t = Date.now();
-  $('#listeEdt').innerHTML = evts.map(e => {
-    const s = D.seances.find(x => x.edtUid === e.uid), enCours = new Date(e.debut) - 15 * 60000 <= t && t <= new Date(e.fin || e.debut);
-    const g = s ? s.groupes : groupesDuCours(e);
-    return `<li data-uid="${echapper(e.uid)}" class="${s && s.id === D.seanceActive ? 'choisie' : ''} ${enCours ? 'encours' : ''}">
-      <span><b>${hm(e.debut)}${e.fin ? '–' + hm(e.fin) : ''} · ${echapper(reference(e.titre))}</b><br>
-      <span class="petit">${echapper(nomsGroupes(g))}${e.lieu ? ' · ' + echapper(e.lieu) : ''}</span></span>
-      <span class="tag ${s && s.validee ? 'present' : s && Object.keys(s.presents).length ? 'retard' : 'carte-non'}">${s && s.validee ? '✅ ' + Object.keys(s.presents).length + ' présent(s)' : s && Object.keys(s.presents).length ? 'Brouillon' : (enCours ? 'En cours' : 'Appel')}</span></li>`;
-  }).join('');
-  $('#listeEdt').querySelectorAll('li').forEach(li => li.onclick = () => {
-    nettoyerBrouillons();
-    D.seanceActive = seancePourCours(evts.find(x => x.uid === li.dataset.uid)).id;
-    enregistrer(); afficherTout();
-  });
-}
-
-// =================== Excel ===================
-const feuilleNom = (n, pris) => {
-  let b = String(n).replace(/[\\\/\?\*\[\]:]/g, '-').slice(0, 31) || 'Cours', r = b, i = 2;
-  while (pris.has(r.toLowerCase())) r = b.slice(0, 28) + ' ' + i++;
-  pris.add(r.toLowerCase()); return r;
-};
-function construireExcel() {
-  if (!window.XLSX) { alert("Le module Excel n'a pas pu se charger (pas de connexion internet ?). Réessayez avec une connexion."); return null; }
-  const ss0 = D.seances.filter(s => s.validee && s.groupes.length);
-  if (!ss0.length) { alert('Aucune séance à exporter.'); return null; }
-  const wb = XLSX.utils.book_new(), pris = new Set();
-  const refs = [...new Set(ss0.map(s => s.ref))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
-  for (const ref of refs) {
-    const ss = ss0.filter(s => s.ref === ref).sort((a, b) => a.date.localeCompare(b.date));
-    const grpPrincipal = e => nomsGroupes(e.groupes.filter(g => ss.some(s => s.groupes.includes(g)))) ;
-    const etus = D.etudiants.filter(e => ss.some(s => e.groupes.some(g => s.groupes.includes(g)) || s.presents[e.id]))
-      .sort((a, b) => grpPrincipal(a).localeCompare(grpPrincipal(b), 'fr') || tri(a, b));
-    const entete = ['Nom', 'Prénom', 'N° étudiant', 'Groupe',
-      ...ss.map(s => new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm(s.date) + ' ' + nomsGroupes(s.groupes)),
-      'Présences', 'Absences', 'Taux'];
-    const lignes = etus.map(e => {
-      let p = 0, a = 0;
-      const cases = ss.map(s => {
-        if (s.presents[e.id]) { p++; return s.presents[e.id].retard ? 'R' : 'P'; }
-        if (e.groupes.some(g => s.groupes.includes(g))) { a++; return 'A'; }
-        return '';
-      });
-      return [e.nom.toUpperCase(), e.prenom, e.num, grpPrincipal(e), ...cases, p, a, p + a ? Math.round(100 * p / (p + a)) + ' %' : ''];
-    });
-    const ws = XLSX.utils.aoa_to_sheet([entete, ...lignes]);
-    ws['!cols'] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, ...ss.map(() => ({ wch: 16 })), { wch: 10 }, { wch: 10 }, { wch: 8 }];
-    XLSX.utils.book_append_sheet(wb, ws, feuilleNom(ref, pris));
-  }
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-}
-const NOM_EXCEL = 'Presences.xlsx', TYPE_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-function telecharger(nom, contenu, type) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([contenu], { type }));
-  a.download = nom; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
-async function envoyerExcel() {
-  const d = construireExcel(); if (!d) return;
-  const f = new File([d], NOM_EXCEL, { type: TYPE_XLSX });
-  if (navigator.canShare && navigator.canShare({ files: [f] })) {
-    try { await navigator.share({ files: [f], title: NOM_EXCEL }); }
-    catch (e) { if (e.name !== 'AbortError') alert('Envoi impossible : ' + e.message); }
-  } else {
-    telecharger(NOM_EXCEL, d, TYPE_XLSX);
-    alert("Fichier Presences.xlsx téléchargé. Ouvrez l'appli de votre drive et importez-le depuis « Téléchargements » (en remplaçant l'ancien).");
-  }
-}
-$('#excelTelecharger').onclick = () => { const d = construireExcel(); if (d) telecharger(NOM_EXCEL, d, TYPE_XLSX); };
-$('#excelPartager').onclick = envoyerExcel;
-function validerSeance() {
-  const s = seance(); if (!s) return false;
-  if (!s.validee) { s.validee = true; enregistrer(); }
-  return true;
-}
-// Supprime les séances ouvertes mais jamais utilisées (aucune présence, pas validées)
-function nettoyerBrouillons() {
-  D.seances = D.seances.filter(s => s.validee || Object.keys(s.presents).length);
-  if (!D.seances.some(s => s.id === D.seanceActive)) D.seanceActive = null;
-}
-$('#terminer').onclick = () => { arreterScan(); if (!validerSeance()) return; afficherTout(); planifierSync(); envoyerExcel(); };
-$('#validerAppel').onclick = () => {
-  const s = seance(); if (!s) return;
-  const n = concernes(s).filter(e => !s.presents[e.id]).length;
-  if (!confirm('Valider l\'appel de ' + s.ref + ' (' + nomsGroupes(s.groupes) + ') ?\n' + n + ' absent(s).\n\nLa séance ira dans l\'Historique, l\'Excel et la synchro ADE.')) return;
-  validerSeance();
-  if (history.state && history.state.appel) history.back(); else fermerAppel();
+$('#urlIcs').onchange = () => { D.icsUrl = $('#urlIcs').value.trim(); enregistrer(); };
+$('#majEdt').onclick = async () => {
+  if (!D.icsUrl) return $('#importIcs').click();
+  try { const r = await fetch(D.icsUrl, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); enregistrerEdt(await r.text()); }
+  catch (e) { if (confirm("L'adresse UPplanning n'est pas accessible directement.\nImporter un fichier .ics à la place ?")) $('#importIcs').click(); }
 };
 
 // =================== Sauvegarde ===================
 $('#sauvegarder').onclick = () => telecharger('sauvegarde_presence_' + jourISO(new Date()) + '.json', JSON.stringify(D), 'application/json');
 $('#restaurer').onchange = ev => {
-  const f = ev.target.files[0]; if (!f) return;
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
   f.text().then(t => {
     try { const d = JSON.parse(t); if (!d.etudiants) throw 0;
       if (confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) { D = Object.assign(vide(), d); migrer(); enregistrer(); afficherTout(); alert('Sauvegarde restaurée.'); }
     } catch (e) { alert('Fichier de sauvegarde invalide.'); }
   });
-  ev.target.value = '';
 };
 $('#toutEffacer').onclick = () => {
   if (confirm('Effacer TOUTES les données (groupes, cartes, séances) ?') && confirm('Vraiment ? Cette action est définitive.')) { D = vide(); enregistrer(); afficherTout(); }
 };
 
-// =================== NFC ===================
-let controleur = null, dernierePasse = { uid: null, t: 0 }, uidEnAttente = null;
-if (!('NDEFReader' in window)) $('#nfcAbsent').style.display = 'block';
-let verrouEcran = null;
-function etatScan(actif, texte) {
-  $('#etatScan').innerHTML = `<span class="pastille ${actif ? 'on' : ''}"></span>` + echapper(texte);
-  $('#arreter').style.display = actif ? 'block' : 'none';
-  $('#reprendre').style.display = actif ? 'none' : 'block';
-}
-async function lancerScan() {
-  if (controleur) return;
-  if (!('NDEFReader' in window)) { etatScan(false, 'NFC indisponible sur cet appareil : validez les présences à la main (boutons P / R / A).'); $('#reprendre').style.display = 'none'; return; }
-  try {
-    controleur = new AbortController();
-    const lecteur = new NDEFReader();
-    await lecteur.scan({ signal: controleur.signal });
-    etatScan(true, 'Scan en cours : les étudiants peuvent badger.');
-    lecteur.onreading = ev => carteLue(ev.serialNumber);
-    lecteur.onreadingerror = () => afficherDernier('inconnu', 'Lecture échouée', 'Laissez la carte une seconde contre le téléphone.');
-  } catch (err) {
-    controleur = null;
-    etatScan(false, 'Impossible de démarrer le NFC : ' + err.message + '. Vérifiez que le NFC est activé et autorisé pour cette page.');
-  }
-}
-function arreterScan() {
-  if (controleur) { try { controleur.abort(); } catch (e) {} controleur = null; }
-  etatScan(false, 'Scan arrêté. Vous pouvez toujours valider à la main.');
-}
-async function ouvrirAppel() {
-  if (!seance()) return alert("Choisissez d'abord une séance.");
-  $('#modeAppel').classList.add('ouvert');
-  afficherDernier('', '', ''); $('#dernier').innerHTML = '<div class="petit">Le nom de l\'étudiant s\'affichera ici à chaque carte badgée</div>';
-  afficherListeAppel();
-  try { history.pushState({ appel: 1 }, ''); } catch (e) {}
-  try { verrouEcran = await navigator.wakeLock.request('screen'); } catch (e) {} // garde l'écran allumé
-  lancerScan();
-}
-function fermerAppel() {
-  arreterScan();
-  $('#modeAppel').classList.remove('ouvert');
-  try { verrouEcran && verrouEcran.release(); } catch (e) {} verrouEcran = null;
-  afficherTout(); planifierSync();
-}
-$('#demarrer').onclick = ouvrirAppel;
-$('#arreter').onclick = arreterScan;
-$('#reprendre').onclick = lancerScan;
-$('#accueil').onclick = () => { if (history.state && history.state.appel) history.back(); else fermerAppel(); };
-window.addEventListener('popstate', () => { if ($('#modeAppel').classList.contains('ouvert')) fermerAppel(); }); // bouton retour d'Android
-
-function afficherDernier(classe, titre, sous) {
-  const d = $('#dernier'); d.className = classe;
-  d.innerHTML = `<div class="nom">${echapper(titre)}</div><div class="petit">${echapper(sous || '')}</div>`;
-}
-function bip(ok) {
-  try { navigator.vibrate && navigator.vibrate(ok ? 120 : [80, 60, 80]); } catch (e) {}
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.value = ok ? 880 : 300; o.connect(g); g.connect(ctx.destination); g.gain.value = 0.1;
-    o.start(); o.stop(ctx.currentTime + 0.15);
-  } catch (e) {}
-}
-function carteLue(uid) {
-  if (!uid) { afficherDernier('inconnu', 'Identifiant illisible', 'Cette carte ne transmet pas de numéro de série.'); bip(false); return; }
-  $('#dernierUid').textContent = 'Dernier identifiant lu : ' + uid + ' (' + heure() + ')';
-  const t = Date.now();
-  if (uid === dernierePasse.uid && t - dernierePasse.t < 3000) return; // même carte laissée contre le téléphone
-  dernierePasse = { uid, t };
-  const s = seance(); if (!s) return;
-  const e = D.etudiants.find(x => x.uid === uid);
-  if (!e) { bip(false); afficherDernier('inconnu', 'Nouvelle carte', "Choisissez l'étudiant dans la liste"); ouvrirModale(uid); return; }
-  marquer(e, s);
-}
-function marquer(e, s) {
-  const hors = !e.groupes.some(g => s.groupes.includes(g));
-  if (s.presents[e.id]) { afficherDernier('deja', nomComplet(e), 'Déjà enregistré à ' + s.presents[e.id].heure); bip(true); return; }
-  const retard = s.edtUid && Date.now() > new Date(s.date).getTime() + (D.seuilRetard || 0) * 60000;
-  s.presents[e.id] = { heure: heure(), manuel: false, retard };
-  enregistrer(); bip(!hors);
-  afficherDernier(hors || retard ? 'hors' : 'ok', '✓ ' + nomComplet(e),
-    hors ? '⚠ Pas dans ce groupe (' + nomsGroupes(e.groupes) + '), enregistré quand même' : retard ? '⏰ En retard (' + heure() + ')' : 'Présent à ' + heure());
-  afficherAppel();
-}
-function ouvrirModale(uid) { uidEnAttente = uid; $('#filtreModale').value = ''; remplirModale(); $('#modaleCarte').style.display = 'block'; }
-function remplirModale() {
-  const s = seance(), f = norm($('#filtreModale').value);
-  const dansSeance = e => s && e.groupes.some(g => s.groupes.includes(g));
-  const liste = D.etudiants.filter(e => !e.uid && norm(nomComplet(e)).includes(f)).sort((a, b) => dansSeance(b) - dansSeance(a) || tri(a, b));
-  $('#listeModale').innerHTML = liste.length
-    ? liste.map(e => `<li data-id="${e.id}"><span>${echapper(nomComplet(e))}</span><span class="petit">${echapper(nomsGroupes(e.groupes))}</span></li>`).join('')
-    : '<li class="petit">Aucun étudiant sans carte. Importez vos listes dans l\'onglet « Groupes ».</li>';
-  $('#listeModale').querySelectorAll('li[data-id]').forEach(li => li.onclick = () => {
-    const e = D.etudiants.find(x => x.id === li.dataset.id);
-    e.uid = uidEnAttente; fermerModale();
-    const s = seance(); if (s) marquer(e, s); else enregistrer();
-    afficherTout();
-  });
-}
-$('#filtreModale').oninput = remplirModale;
-function fermerModale() { $('#modaleCarte').style.display = 'none'; uidEnAttente = null; }
-$('#annulerModale').onclick = fermerModale;
-
 // =================== Synchronisation avec le PC (dépôt GitHub privé) ===================
-// Fichier ade.json : { maj, s: [{ id, d, h, t, g, a:[[nom,prénom]], r:[[nom,prénom]], ok }] }
-// Le téléphone y dépose les séances à saisir ; le favori « Saisie ADE » du PC met ok:true une fois enregistrée.
+// ade.json : séances validées à saisir { id, d, h, t, g, a:[[nom,prénom]], r:[], ok } ; le favori ADE met ok:true.
+// presences/*.csv + presences/Presences.xlsx : tableaux toujours à jour.
 const lireJeton = () => { try { return localStorage.getItem('presence-jeton') || ''; } catch (e) { return ''; } };
 const depot = () => (D.syncDepot || 'Sobysun/presence-data').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
-const b64enc = t => { const o = new TextEncoder().encode(t); let s = ''; for (let i = 0; i < o.length; i += 8192) s += String.fromCharCode.apply(null, o.subarray(i, i + 8192)); return btoa(s); };
+const b64enc = t => { const o = typeof t === 'string' ? new TextEncoder().encode(t) : new Uint8Array(t); let s = ''; for (let i = 0; i < o.length; i += 8192) s += String.fromCharCode.apply(null, o.subarray(i, i + 8192)); return btoa(s); };
 const b64dec = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\s/g, '')), c => c.charCodeAt(0)));
-async function github(methode, corps) {
-  return fetch(`https://api.github.com/repos/${depot()}/contents/ade.json`, {
-    method: methode, cache: 'no-store',
-    headers: { Authorization: 'Bearer ' + lireJeton(), Accept: 'application/vnd.github+json' },
-    body: corps ? JSON.stringify(corps) : undefined });
-}
-function entreesAde() {
-  const t = Date.now();
-  return D.seances.filter(s => s.validee && !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date)).map(s => {
-    const l = concernes(s).sort(tri);
-    return { id: s.id, d: new Date(s.date).toLocaleDateString('fr-FR'), h: hm(s.date), t: s.ref, g: nomsGroupes(s.groupes),
-      a: l.filter(e => !s.presents[e.id]).map(e => [e.nom, e.prenom]),
-      r: l.filter(e => s.presents[e.id]?.retard).map(e => [e.nom, e.prenom]), ok: false };
-  });
-}
+const github = (methode, corps, chemin = 'ade.json') => fetch(`https://api.github.com/repos/${depot()}/contents/${chemin.split('/').map(encodeURIComponent).join('/')}`, {
+  method: methode, cache: 'no-store', headers: { Authorization: 'Bearer ' + lireJeton(), Accept: 'application/vnd.github+json' }, body: corps ? JSON.stringify(corps) : undefined });
+const entreesAdeSeances = () => { const t = Date.now(); return D.seances.filter(s => s.validee && !s.saisiAde && s.groupes.length && new Date(s.date).getTime() <= t).sort((a, b) => a.date.localeCompare(b.date)); };
+const entreesAde = () => entreesAdeSeances().map(s => ({ id: s.id, d: new Date(s.date).toLocaleDateString('fr-FR'), h: hm(s.date), t: s.ref, g: nomsGroupes(s.groupes),
+  a: concernes(s).sort(tri).filter(e => !s.presents[e.id]).map(e => [e.nom, e.prenom]), r: [], ok: false }));
+
 let syncEnCours = false, syncAttente = null;
-function etatSync(texte, erreur) { $('#etatSync').textContent = texte; $('#etatSync').className = erreur ? 'alerte' : 'info'; }
+function etatSync(texte, cls) {
+  $('#etatSync').textContent = texte;
+  $('#etatSyncMini').innerHTML = lireJeton() ? `<span class="point ${cls || ''}"></span>synchro` : '';
+}
 async function synchroniser(manuel) {
-  if (!lireJeton()) { etatSync('Synchronisation avec le PC non configurée (onglet Réglages).'); if (manuel) alert("Configurez d'abord la synchronisation dans l'onglet Réglages."); return false; }
+  if (!lireJeton()) { etatSync('non configurée'); if (manuel) alert('Configurez la connexion GitHub dans Réglages.'); return false; }
   if (syncEnCours) return false;
-  syncEnCours = true; etatSync('🔄 Synchronisation…');
+  syncEnCours = true; etatSync('synchronisation…');
   try {
     for (let essai = 0; essai < 3; essai++) {
       const r = await github('GET');
       let distant = { s: [] }, sha;
       if (r.status === 200) { const j = await r.json(); sha = j.sha; try { distant = JSON.parse(b64dec(j.content)); } catch (e) {} }
-      else if (r.status !== 404) throw new Error(r.status === 401 ? 'jeton refusé' : r.status === 404 ? 'dépôt introuvable' : 'GitHub ' + r.status);
+      else if (r.status !== 404) throw new Error(r.status === 401 ? 'jeton refusé' : 'GitHub ' + r.status);
       let valides = 0;
       (distant.s || []).filter(x => x.ok).forEach(x => { const s = D.seances.find(y => y.id === x.id); if (s && !s.saisiAde) { s.saisiAde = true; valides++; } });
-      if (valides) { enregistrer(); afficherTout(); }
+      if (valides) enregistrer();
       const contenu = { maj: new Date().toISOString(), s: entreesAde() };
-      if (JSON.stringify((distant.s || []).filter(x => !x.ok)) === JSON.stringify(contenu.s) && sha) { D.syncMaj = contenu.maj; break; } // rien à changer
-      const p = await github('PUT', { message: 'Synchro appli Présence NFC', content: b64enc(JSON.stringify(contenu)), ...(sha ? { sha } : {}) });
-      if (p.ok) { D.syncMaj = contenu.maj; break; }
-      if (p.status === 404) throw new Error('dépôt introuvable ou jeton sans accès en écriture');
+      if (sha && JSON.stringify((distant.s || []).filter(x => !x.ok)) === JSON.stringify(contenu.s)) break;
+      const p = await github('PUT', { message: 'Synchro appli', content: b64enc(JSON.stringify(contenu)), ...(sha ? { sha } : {}) });
+      if (p.ok) break;
+      if (p.status === 404) throw new Error('dépôt introuvable ou jeton sans écriture');
       if (p.status !== 409 && p.status !== 422) throw new Error('GitHub ' + p.status);
-      await new Promise(r => setTimeout(r, 800)); // le PC a écrit en même temps : on relit et on recommence
+      await new Promise(r => setTimeout(r, 800));
     }
-    enregistrer();
-    const n = entreesAde().length;
-    etatSync('✅ Synchronisé à ' + hm(D.syncMaj || new Date()) + ' · ' + (n ? n + ' séance(s) en attente sur le PC' : 'tout est saisi dans ADE'));
+    await publierPresences();
+    D.syncMaj = new Date().toISOString(); enregistrer();
+    const n = entreesAdeSeances().length;
+    etatSync('OK · ' + hm(D.syncMaj) + (n ? ' · ' + n + ' à saisir dans ADE' : ''), 'ok');
+    afficherTout();
     return true;
   } catch (e) {
-    etatSync('⚠ Synchronisation impossible : ' + e.message + (navigator.onLine === false ? ' (pas de connexion)' : ''), true);
-    return false;
+    etatSync('erreur : ' + e.message, 'err'); return false;
   } finally { syncEnCours = false; }
+}
+const empreinte = t => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return String(h); };
+const enCsv = lignes => lignes.map(l => l.map(v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n') + '\n';
+async function ecrireFichier(chemin, contenuB64, message) {
+  D.syncFichiers = D.syncFichiers || {};
+  const cache = D.syncFichiers[chemin] || {};
+  for (let essai = 0; essai < 2; essai++) {
+    const r = await github('PUT', { message, content: contenuB64, ...(cache.sha ? { sha: cache.sha } : {}) }, chemin);
+    if (r.ok) { const j = await r.json(); D.syncFichiers[chemin] = { sha: j.content && j.content.sha }; return; }
+    if (![409, 422].includes(r.status)) throw new Error('écriture ' + chemin + ' : GitHub ' + r.status);
+    const g = await github('GET', null, chemin); cache.sha = g.ok ? (await g.json()).sha : undefined;
+  }
+  throw new Error('écriture de ' + chemin + ' impossible');
+}
+async function publierPresences() {
+  const tabs = tableauxPresences(); if (!tabs.length) return;
+  const csvs = tabs.map(t => ({ chemin: 'presences/' + t.ref.replace(/[\\\/:*?"<>|]/g, '-') + '.csv', texte: enCsv(t.lignes) }));
+  const e = empreinte(csvs.map(c => c.chemin + c.texte).join('|'));
+  if (D.syncPresences === e) return;
+  for (const c of csvs) await ecrireFichier(c.chemin, b64enc(c.texte), 'Présences ' + c.chemin.slice(10, -4));
+  const x = construireExcel(true); if (x) await ecrireFichier('presences/Presences.xlsx', b64enc(x), 'Présences (Excel)');
+  D.syncPresences = e;
 }
 function planifierSync() { clearTimeout(syncAttente); syncAttente = setTimeout(() => synchroniser(false), 1500); }
 $('#syncMaintenant').onclick = () => synchroniser(true);
-function initSync() { $('#syncDepot').value = D.syncDepot || 'Sobysun/presence-data'; $('#syncJeton').value = lireJeton(); synchroniser(false); }
 $('#syncTester').onclick = async () => {
   D.syncDepot = $('#syncDepot').value.trim() || 'Sobysun/presence-data'; enregistrer();
   try { localStorage.setItem('presence-jeton', $('#syncJeton').value.trim()); } catch (e) {}
-  if (await synchroniser(true)) alert('Synchronisation OK : le favori « Saisie ADE » du PC verra vos séances.');
-  else alert($('#etatSync').textContent);
+  alert(await synchroniser(true) ? 'Connexion OK.' : 'Échec : ' + $('#etatSync').textContent);
 };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') planifierSync(); });
-setInterval(() => { if (document.visibilityState === 'visible' && !$('#modeAppel').classList.contains('ouvert')) synchroniser(false); }, 120000);
+setInterval(() => { if (document.visibilityState === 'visible' && !$('#appel').classList.contains('ouvert')) synchroniser(false); }, 120000);
+
+// =================== Réglages ===================
+function afficherReglages() {
+  $('#infoEdt').textContent = D.edtMaj ? D.edt.length + ' cours · mis à jour le ' + new Date(D.edtMaj).toLocaleDateString('fr-FR') : 'non importé';
+  afficherGroupes();
+}
 
 // =================== Démarrage ===================
-function afficherTout() { afficherAppel(); afficherClasse(); afficherSeances(); }
-charger();
-if (D.icsUrl) $('#urlIcs').value = D.icsUrl;
-$('#seuilRetard').value = D.seuilRetard;
-$('#seuilRetard').onchange = ev => { const v = parseInt(ev.target.value, 10); D.seuilRetard = isNaN(v) ? 10 : Math.max(0, v); enregistrer(); };
-{ // ouvre automatiquement le cours en cours (ou qui commence dans moins de 15 min)
-  const t = Date.now();
-  const e = (D.edt || []).find(x => new Date(x.debut) - 15 * 60000 <= t && t <= new Date(x.fin || x.debut));
-  nettoyerBrouillons();
-  if (e) { D.seanceActive = seancePourCours(e).id; enregistrer(); }
+function afficherTout() {
+  afficherAujourdhui(); afficherHistorique(); afficherReglages();
+  if ($('#appel').classList.contains('ouvert')) afficherAppel();
 }
+document.querySelectorAll('i[data-ic]').forEach(i => i.outerHTML = ic(i.dataset.ic));
+charger();
+$('#urlIcs').value = D.icsUrl || ''; $('#syncDepot').value = D.syncDepot || 'Sobysun/presence-data'; $('#syncJeton').value = lireJeton();
+{ // sélectionne le cours en cours, ou le prochain du jour
+  const t = Date.now(), auj = (D.edt || []).filter(x => jourISO(x.debut) === jourISO(new Date()));
+  const e = auj.find(x => new Date(x.debut) - 15 * 60000 <= t && t <= new Date(x.fin || x.debut)) || auj.find(x => new Date(x.debut) > t);
+  if (e) D.seanceActive = seancePourCours(e).id;
+  nettoyerBrouillons(); enregistrer();
+}
+etatSync(lireJeton() ? '…' : 'non configurée');
 afficherTout();
-initSync();
-window.__test = { get D() { return D; }, enregistrerEdt, construireExcel, carteLue, seance, analyserCours, reference, synchroniser };
+synchroniser(false);
+window.__test = { get D() { return D; }, enregistrerEdt, construireExcel, carteLue, seance, synchroniser, son };
 }
 </script>
 </body>
